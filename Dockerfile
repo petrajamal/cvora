@@ -25,4 +25,4 @@ RUN mkdir -p uploads generated_tex
 EXPOSE 8000
 
 # Run the background worker + the API server together
-CMD ["sh", "-c", "python worker.py & uvicorn main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "python worker.py & uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]

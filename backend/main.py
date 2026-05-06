@@ -207,11 +207,12 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://127.0.0.1")
+print(f"[STARTUP] SMTP_USER={'set' if SMTP_USER else 'MISSING'} SMTP_PASS={'set' if SMTP_PASS else 'MISSING'} FRONTEND_URL={FRONTEND_URL}", flush=True)
 
 
 def _send_reset_email(to_email: str, raw_token: str):
     if not SMTP_USER or not SMTP_PASS:
-        print("[EMAIL] SMTP not configured — skipping email send.")
+        print("[EMAIL] SMTP not configured — skipping email send.", flush=True)
         return
     reset_link = f"{FRONTEND_URL}?token={raw_token}"
     msg = MIMEMultipart("alternative")
@@ -235,9 +236,9 @@ def _send_reset_email(to_email: str, raw_token: str):
             server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_USER, to_email, msg.as_string())
-        print(f"[EMAIL] Reset email sent to {to_email}")
+        print(f"[EMAIL] Reset email sent to {to_email}", flush=True)
     except Exception as exc:
-        print(f"[EMAIL] Failed to send email: {exc}")
+        print(f"[EMAIL] Failed to send email: {exc}", flush=True)
 
 
 # ── Auth routes ───────────────────────────────────────────────────────────────

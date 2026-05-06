@@ -1,7 +1,7 @@
-// Locally: talk directly to uvicorn. In production: nginx on same domain proxies.
+// Locally: talk directly to uvicorn. In production: Railway backend.
 const BACKEND_URL = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
   ? "http://127.0.0.1:8000"
-  : "";
+  : "https://cvora-production.up.railway.app";
 
 console.log("app.js loaded");
 

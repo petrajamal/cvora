@@ -215,14 +215,19 @@ def _send_reset_email(to_email: str, raw_token: str):
         return
     reset_link = f"{FRONTEND_URL}?token={raw_token}"
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = "Reset your CV Job Matcher password"
-    msg["From"]    = SMTP_USER
+    msg["Subject"] = "Reset your CVora password"
+    msg["From"]    = f"CVora <{SMTP_USER}>"
     msg["To"]      = to_email
     html = f"""
-    <p>Hi,</p>
-    <p>Click the link below to reset your password. It expires in 60 minutes.</p>
-    <p><a href="{reset_link}">{reset_link}</a></p>
-    <p>If you didn't request this, ignore this email.</p>
+    <div style="font-family:Inter,system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#0F172A;">
+      <div style="margin-bottom:24px;">
+        <span style="background:#4F46E5;color:white;padding:6px 12px;border-radius:8px;font-weight:700;font-size:14px;">CVora</span>
+      </div>
+      <h2 style="font-size:20px;font-weight:700;margin:0 0 8px;">Reset your password</h2>
+      <p style="color:#475569;margin:0 0 24px;font-size:14px;">Click the button below to set a new password. This link expires in 60 minutes.</p>
+      <a href="{reset_link}" style="display:inline-block;background:#4F46E5;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Reset Password</a>
+      <p style="color:#94A3B8;margin-top:24px;font-size:12px;">If you didn't request this, you can safely ignore this email.</p>
+    </div>
     """
     msg.attach(MIMEText(html, "html"))
     try:

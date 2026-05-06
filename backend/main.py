@@ -322,6 +322,7 @@ def forgot_password(payload: dict, request: Request):
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.email == email).first()
+        print(f"[FORGOT] email={email} found={user is not None}", flush=True)
         if not user:
             return generic  # don't reveal whether the email exists
 

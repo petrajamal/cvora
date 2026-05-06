@@ -1,11 +1,14 @@
 FROM python:3.11-slim
 
-# LaTeX — texlive-latex-extra pulls in pdflatex + common packages (~400 MB)
+# System deps (curl for healthcheck)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    texlive-latex-extra \
-    texlive-fonts-recommended \
-    texlive-fonts-extra \
+    curl \
     && rm -rf /var/lib/apt/lists/*
+
+# LaTeX (needed for PDF CV generation — uncomment when ready)
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#     texlive-latex-extra texlive-fonts-recommended texlive-fonts-extra \
+#     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

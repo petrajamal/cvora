@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "WebFetch(domain:rapidapi.com)",
+      "WebSearch",
+      "WebFetch(domain:www.openwebninja.com)",
+      "Bash(lsof -ti:8000)",
+      "Bash(kill -9 17068 17070)",
+      "Bash(xargs kill *)",
+      "Bash(curl -s http://127.0.0.1:8000/)",
+      "Bash(pdflatex --version)",
+      "Bash(python -c ' *)",
+      "Bash(python3 -c ' *)",
+      "Bash(/Users/petrajamal/cv-job-matcher/backend/venv/bin/python3 -c ' *)",
+      "Bash(/Users/petrajamal/cv-job-matcher/backend/venv/bin/python3 -c \"from latex_gen import generate_latex_cv, compile_to_pdf; print\\('OK'\\)\")",
+      "Bash(node --check /Users/petrajamal/cv-job-matcher/frontend/app.js)",
+      "Read(//usr/local/bin/**)",
+      "Read(//opt/homebrew/bin/**)",
+      "Bash(node --check app.js)",
+      "Bash(python3 -c \"import fitz; print\\(fitz.__doc__[:50]\\)\")"
+    ]
+  }
+}

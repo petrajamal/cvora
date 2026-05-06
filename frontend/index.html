@@ -1,0 +1,1794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' blob: data:; connect-src 'self' http://127.0.0.1:8000; frame-src blob:;" />
+  <title>CVora</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ════════════════════════════════════════════
+       DESIGN TOKENS
+    ════════════════════════════════════════════ */
+    :root {
+      --primary:         #4F46E5;
+      --primary-dark:    #4338CA;
+      --primary-light:   #EEF2FF;
+      --primary-ring:    rgba(79,70,229,0.18);
+      --primary-border:  #C7D2FE;
+
+      --success:         #059669;
+      --success-light:   #ECFDF5;
+      --success-dark:    #047857;
+
+      --warning:         #D97706;
+      --warning-light:   #FFFBEB;
+
+      --danger:          #DC2626;
+      --danger-light:    #FEF2F2;
+      --danger-border:   #FECACA;
+
+      --cyan:            #0891B2;
+      --cyan-light:      #ECFEFF;
+      --cyan-border:     #A5F3FC;
+
+      --emerald:         #059669;
+      --emerald-light:   #ECFDF5;
+      --emerald-border:  #A7F3D0;
+
+      --surface:         #FFFFFF;
+      --bg:              #F1F5F9;
+      --bg-muted:        #F8FAFC;
+
+      --border:          #E2E8F0;
+      --border-strong:   #CBD5E1;
+
+      --text:            #0F172A;
+      --text-secondary:  #475569;
+      --text-muted:      #94A3B8;
+
+      --topbar-bg:       #1E293B;
+      --topbar-border:   #334155;
+
+      --radius-xs:  4px;
+      --radius-sm:  6px;
+      --radius:     10px;
+      --radius-lg:  14px;
+      --radius-xl:  18px;
+
+      --shadow-xs: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow:    0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+      --shadow-lg: 0 10px 30px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    /* ════════════════════════════════════════════
+       RESET & BASE
+    ════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3, h4 { margin-top: 0; line-height: 1.3; font-weight: 600; }
+
+    /* ════════════════════════════════════════════
+       CARD COMPONENT
+    ════════════════════════════════════════════ */
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    /* ════════════════════════════════════════════
+       AUTH SCREEN
+    ════════════════════════════════════════════ */
+    #authScreen {
+      max-width: 420px;
+      margin: 72px auto;
+      padding: 36px 32px 28px;
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-lg);
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    .auth-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .auth-brand-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--primary);
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+
+    .auth-brand-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    #authTitle {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .auth-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin: 0 0 20px;
+    }
+
+    #authError {
+      color: var(--danger);
+      font-size: 13px;
+      margin-top: 6px;
+      min-height: 18px;
+      font-weight: 500;
+    }
+
+    .auth-toggle {
+      background: none !important;
+      color: var(--primary) !important;
+      padding: 0 !important;
+      font-size: 13px;
+      font-weight: 600;
+      border: none !important;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .auth-toggle:hover {
+      color: var(--primary-dark) !important;
+      box-shadow: none !important;
+      transform: none !important;
+    }
+
+    #authSubmitBtn {
+      width: 100%;
+      margin-top: 16px;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: var(--radius);
+      letter-spacing: 0.01em;
+    }
+
+    #passwordRules {
+      font-size: 12px;
+      line-height: 2;
+      margin-bottom: 12px;
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+    }
+
+    .auth-footer {
+      margin-top: 18px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    /* ════════════════════════════════════════════
+       APP LAYOUT
+    ════════════════════════════════════════════ */
+    #appScreen {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background: var(--bg);
+    }
+
+    /* ── TOP BAR ── */
+    #topBar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--topbar-bg);
+      padding: 0 28px;
+      height: 70px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid var(--topbar-border);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .topbar-logo {
+      width: 28px;
+      height: 28px;
+      background: var(--primary);
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+
+    #topBar h1 {
+      font-size: 1.0rem;
+      font-weight: 700;
+      color: white;
+      margin: 0;
+      letter-spacing: -0.01em;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #loggedInEmail {
+      font-size: 13px;
+      color: #94A3B8;
+      font-weight: 400;
+    }
+
+    #topBar button {
+      padding: 7px 16px;
+      font-size: 13px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #CBD5E1;
+      border-radius: var(--radius-sm);
+      font-weight: 500;
+    }
+    #topBar button:hover {
+      background: rgba(255,255,255,0.16);
+      color: white;
+      box-shadow: none;
+    }
+
+    /* ── CONTENT AREA ── */
+    .app-content {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 24px 48px;
+      width: 100%;
+    }
+
+    .app-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin: 0 0 20px;
+    }
+
+    /* ── MODE SELECTOR ── */
+    .mode-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      padding: 14px 20px;
+    }
+
+    .mode-card h2 {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      margin: 0;
+      flex-shrink: 0;
+    }
+
+    .mode-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .mode-buttons .btn-upload {
+      padding: 8px 22px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .mode-buttons .btn-builder {
+      padding: 8px 22px;
+      font-size: 14px;
+      font-weight: 500;
+      background: transparent;
+      color: var(--primary);
+      border: 1.5px solid var(--primary-border);
+    }
+    .mode-buttons .btn-builder:hover {
+      background: var(--primary-light);
+      box-shadow: none;
+    }
+
+    /* ════════════════════════════════════════════
+       FORM COMPONENTS
+    ════════════════════════════════════════════ */
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      margin: 14px 0 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    input[type="file"],
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="month"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 9px 12px;
+      margin-bottom: 2px;
+      box-sizing: border-box;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: 'Inter', system-ui, sans-serif;
+      color: var(--text);
+      background: #FAFBFC;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.1s;
+      outline: none;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-ring);
+      background: #ffffff;
+    }
+
+    input::placeholder, textarea::placeholder {
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    textarea { resize: vertical; }
+
+    select[multiple] { height: 160px; }
+
+    /* ── BUTTONS ── */
+    button {
+      padding: 9px 18px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: var(--primary);
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      transition: background 0.15s, box-shadow 0.15s, transform 0.05s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    button:hover {
+      background: var(--primary-dark);
+      box-shadow: 0 2px 8px rgba(79,70,229,0.28);
+    }
+    button:active { transform: scale(0.98); }
+
+    /* Checkbox group */
+    .checkbox-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-bottom: 12px;
+    }
+    .checkbox-group label {
+      font-weight: 400;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--text);
+      padding: 7px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .checkbox-group label:hover { background: var(--bg); }
+    .checkbox-group input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: var(--primary);
+      flex-shrink: 0;
+    }
+
+    /* Required mark */
+    .required-mark::after {
+      content: " *";
+      color: var(--danger);
+      font-size: 11px;
+    }
+
+    /* ════════════════════════════════════════════
+       SUBSECTION HEADERS
+    ════════════════════════════════════════════ */
+    .subsection-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1.5px solid var(--border);
+      margin: 6px 0 14px;
+    }
+
+    .subsection-header h4,
+    .subsection-header span {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 0;
+    }
+
+    .subsection-header button {
+      padding: 5px 14px;
+      font-size: 11px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1.5px solid var(--primary-border);
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+    .subsection-header button:hover {
+      background: var(--primary);
+      color: white;
+      box-shadow: none;
+    }
+
+    /* ════════════════════════════════════════════
+       ENTRY CARDS
+    ════════════════════════════════════════════ */
+    .entry-card {
+      border: 1.5px solid var(--border);
+      border-left: 4px solid var(--primary);
+      border-radius: var(--radius);
+      padding: 16px 16px 12px;
+      margin-bottom: 12px;
+      background: var(--bg-muted);
+      box-shadow: var(--shadow-xs);
+    }
+
+    .entry-card h4 {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+      margin-top: 2px;
+    }
+
+    .entry-card label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin: 10px 0 4px;
+    }
+
+    .entry-card input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+      accent-color: var(--primary);
+    }
+
+    /* Grade row bottom spacing */
+    .grade-gpa-row input,
+    .grade-pct-row input,
+    .grade-letter-row select {
+      margin-bottom: 8px;
+    }
+
+    /* Project URL row */
+    .url-row input { margin-bottom: 8px; }
+
+    /* ── INLINE ACTIONS (remove btn row) ── */
+    .inline-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 6px;
+    }
+
+    .remove-entry-btn {
+      background: transparent !important;
+      color: var(--danger) !important;
+      border: 1px solid var(--danger-border) !important;
+      padding: 3px 10px !important;
+      font-size: 10px !important;
+      font-weight: 700 !important;
+      border-radius: var(--radius-xs) !important;
+      letter-spacing: 0.05em !important;
+      text-transform: uppercase !important;
+    }
+    .remove-entry-btn:hover {
+      background: var(--danger-light) !important;
+      box-shadow: none !important;
+      transform: none !important;
+    }
+
+    /* ── ADD URL BUTTON ── */
+    .add-url-btn {
+      background: var(--bg) !important;
+      color: var(--text-secondary) !important;
+      border: 1.5px solid var(--border) !important;
+      padding: 5px 14px !important;
+      font-size: 12px !important;
+      font-weight: 600 !important;
+      margin-bottom: 8px;
+    }
+    .add-url-btn:hover {
+      background: var(--primary-light) !important;
+      color: var(--primary) !important;
+      border-color: var(--primary-border) !important;
+      box-shadow: none !important;
+    }
+
+    /* ════════════════════════════════════════════
+       SKILL CHIPS / BADGES
+    ════════════════════════════════════════════ */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+      margin: 3px 4px 3px 0;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .badge--tools {
+      background: var(--cyan-light);
+      color: var(--cyan);
+      border-color: var(--cyan-border);
+    }
+
+    .badge--soft {
+      background: var(--emerald-light);
+      color: var(--emerald);
+      border-color: var(--emerald-border);
+    }
+
+    .badge button {
+      background: transparent !important;
+      color: inherit !important;
+      padding: 0 !important;
+      font-size: 14px !important;
+      line-height: 1 !important;
+      border: none !important;
+      opacity: 0.45 !important;
+      box-shadow: none !important;
+      transform: none !important;
+      min-width: unset;
+    }
+    .badge button:hover { opacity: 1 !important; }
+
+    #technicalSkillsContainer,
+    #toolsSkillsContainer,
+    #softSkillsContainer {
+      min-height: 34px;
+      padding: 4px 0 6px;
+    }
+
+    /* ════════════════════════════════════════════
+       UPLOAD SECTION
+    ════════════════════════════════════════════ */
+    #uploadSection {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    #uploadSection h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    /* ════════════════════════════════════════════
+       BUILDER SECTION + PREVIEW TWO-COLUMN LAYOUT
+    ════════════════════════════════════════════ */
+    #builderPreviewLayout {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    #builderSection {
+      flex: 1;
+      min-width: 0;
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    #builderSection h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      padding-bottom: 18px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    #builderSection h3 {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin: 28px 0 14px;
+      padding: 0 0 10px;
+      border-bottom: 2px solid var(--primary-light);
+      display: flex;
+      align-items: center;
+    }
+
+    #builderSection h3::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 13px;
+      background: var(--primary);
+      border-radius: 2px;
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+
+    #buildCvBtn {
+      margin-top: 20px;
+      padding: 11px 26px;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: var(--radius);
+    }
+
+    #resetBuilderBtn {
+      background: transparent !important;
+      color: var(--text-secondary) !important;
+      border: 1.5px solid var(--border) !important;
+      margin-left: 10px;
+      padding: 11px 20px;
+      font-size: 14px;
+    }
+    #resetBuilderBtn:hover {
+      background: var(--danger-light) !important;
+      border-color: var(--danger-border) !important;
+      color: var(--danger) !important;
+      box-shadow: none !important;
+    }
+
+    /* ════════════════════════════════════════════
+       CV PREVIEW PANEL
+    ════════════════════════════════════════════ */
+    #previewCard {
+      width: 370px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 86px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    #previewToolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #previewToolbar strong {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+      min-width: 60px;
+    }
+
+    #previewToolbar button {
+      padding: 6px 13px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    #updatePreviewBtn {
+      background: var(--bg) !important;
+      color: var(--text-secondary) !important;
+      border: 1.5px solid var(--border) !important;
+    }
+    #updatePreviewBtn:hover {
+      background: var(--primary-light) !important;
+      color: var(--primary) !important;
+      border-color: var(--primary-border) !important;
+      box-shadow: none !important;
+    }
+
+    #findJobsBtn {
+      background: var(--success) !important;
+    }
+    #findJobsBtn:hover {
+      background: var(--success-dark) !important;
+      box-shadow: 0 2px 8px rgba(5,150,105,0.3) !important;
+    }
+
+    #previewStatus {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+      width: 100%;
+    }
+
+    #previewFrame {
+      width: 100%;
+      height: 840px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      display: block;
+      background: var(--bg);
+    }
+
+    /* ════════════════════════════════════════════
+       STATUS CARD
+    ════════════════════════════════════════════ */
+    #statusCard h2 {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    #statusText {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    /* ════════════════════════════════════════════
+       RESULTS CARD
+    ════════════════════════════════════════════ */
+    #resultsCard h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    #resultsCard h3 {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 20px 0 12px;
+    }
+
+    #candidateInfo {
+      background: var(--bg);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 4px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 24px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+    }
+
+    #candidateInfo p {
+      margin: 0;
+      color: var(--text-secondary);
+    }
+
+    #candidateInfo strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    /* ════════════════════════════════════════════
+       JOB RESULT CARDS
+    ════════════════════════════════════════════ */
+    .job {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-top: 14px;
+      background: var(--surface);
+      box-shadow: var(--shadow-xs);
+      transition: box-shadow 0.15s, border-color 0.15s;
+    }
+    .job:hover {
+      box-shadow: var(--shadow);
+      border-color: var(--primary-border);
+    }
+
+    /* ════════════════════════════════════════════
+       MODE BUTTON ACTIVE STATE
+    ════════════════════════════════════════════ */
+    .mode-buttons button.mode-active {
+      background: var(--topbar-bg) !important;
+      border-color: var(--topbar-bg) !important;
+      color: white !important;
+      box-shadow: var(--shadow-sm) !important;
+    }
+
+    /* ════════════════════════════════════════════
+       DISABLED INPUTS
+    ════════════════════════════════════════════ */
+    input:disabled, select:disabled, textarea:disabled {
+      background: var(--bg) !important;
+      color: var(--text-muted) !important;
+      border-color: var(--border) !important;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    /* ════════════════════════════════════════════
+       DETAILS / SUMMARY TRIANGLE
+    ════════════════════════════════════════════ */
+    details > summary {
+      list-style: none;
+    }
+    details > summary::-webkit-details-marker { display: none; }
+    details > summary::before {
+      content: '›';
+      display: inline-block;
+      margin-right: 5px;
+      font-size: 14px;
+      transition: transform 0.15s;
+      color: var(--text-muted);
+    }
+    details[open] > summary::before { transform: rotate(90deg); }
+
+    /* ════════════════════════════════════════════
+       STATUS SPINNER + LOADING STATE
+    ════════════════════════════════════════════ */
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .status-spinner {
+      display: inline-block;
+      width: 13px;
+      height: 13px;
+      border: 2px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 7px;
+      flex-shrink: 0;
+    }
+
+    #statusCard {
+      border-left: 4px solid var(--primary);
+      transition: border-left-color 0.3s;
+    }
+    #statusCard.status-processing { border-left-color: var(--primary); }
+    #statusCard.status-done       { border-left-color: var(--success); }
+    #statusCard.status-failed     { border-left-color: var(--danger); }
+
+    /* ════════════════════════════════════════════
+       PREVIEW STATUS BADGES
+    ════════════════════════════════════════════ */
+    .preview-status-ok    { color: var(--success); font-weight: 600; }
+    .preview-status-err   { color: var(--danger);  font-weight: 600; }
+    .preview-status-busy  { color: var(--text-muted); }
+
+    /* ════════════════════════════════════════════
+       HERO STRIP
+    ════════════════════════════════════════════ */
+    .hero-strip {
+      background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 60%, #0891B2 100%);
+      border-radius: var(--radius-lg);
+      padding: 28px 32px;
+      margin-bottom: 20px;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-strip::before {
+      content: "";
+      position: absolute;
+      right: -40px; top: -40px;
+      width: 220px; height: 220px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 50%;
+    }
+    .hero-strip::after {
+      content: "";
+      position: absolute;
+      right: 80px; bottom: -60px;
+      width: 160px; height: 160px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 50%;
+    }
+    .hero-text h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin: 0 0 6px;
+      color: white;
+    }
+    .hero-text p {
+      font-size: 13.5px;
+      color: rgba(255,255,255,0.8);
+      margin: 0;
+      max-width: 420px;
+    }
+    .hero-stats {
+      display: flex;
+      gap: 28px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .hero-stat {
+      text-align: center;
+    }
+    .hero-stat-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: white;
+      line-height: 1;
+    }
+    .hero-stat-label {
+      font-size: 11px;
+      color: rgba(255,255,255,0.7);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* ════════════════════════════════════════════
+       PREVIEW PLACEHOLDER
+    ════════════════════════════════════════════ */
+    #previewPlaceholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 480px;
+      gap: 16px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 24px;
+    }
+    .preview-placeholder-icon {
+      width: 72px;
+      height: 88px;
+      background: var(--bg);
+      border: 2px dashed var(--border-strong);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .preview-placeholder-icon::before {
+      content: "";
+      position: absolute;
+      top: -1px; right: -1px;
+      width: 20px; height: 20px;
+      background: var(--surface);
+      border-left: 2px dashed var(--border-strong);
+      border-bottom: 2px dashed var(--border-strong);
+      border-radius: 0 0 0 var(--radius-xs);
+    }
+    .preview-placeholder-icon svg {
+      color: var(--border-strong);
+    }
+    #previewPlaceholder h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+    #previewPlaceholder p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin: 0;
+      max-width: 240px;
+      line-height: 1.6;
+    }
+    #previewPlaceholder .placeholder-steps {
+      list-style: none;
+      padding: 0;
+      margin: 8px 0 0;
+      text-align: left;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #previewPlaceholder .placeholder-steps li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #previewPlaceholder .placeholder-steps .step-num {
+      width: 20px;
+      height: 20px;
+      background: var(--primary-light);
+      border-radius: 50%;
+      color: var(--primary);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ════════════════════════════════════════════
+       PROFILE SCREEN
+    ════════════════════════════════════════════ */
+    #profileScreen {
+      display: none;
+    }
+    #profileScreen.visible {
+      display: block;
+    }
+    .profile-header-card {
+      background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
+      border-radius: var(--radius-lg);
+      padding: 28px 32px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .profile-avatar {
+      width: 64px;
+      height: 64px;
+      background: var(--primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white;
+      flex-shrink: 0;
+      border: 3px solid rgba(255,255,255,0.2);
+    }
+    .profile-meta h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: white;
+      margin: 0 0 4px;
+    }
+    .profile-meta p {
+      font-size: 13px;
+      color: #94A3B8;
+      margin: 0;
+    }
+    .profile-back-btn {
+      margin-left: auto;
+      background: rgba(255,255,255,0.1) !important;
+      border: 1px solid rgba(255,255,255,0.2) !important;
+      color: white !important;
+      font-size: 13px !important;
+      padding: 8px 16px !important;
+    }
+    .profile-back-btn:hover {
+      background: rgba(255,255,255,0.2) !important;
+      box-shadow: none !important;
+    }
+    .profile-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      padding: 10px 20px;
+      background: none !important;
+      border: none !important;
+      border-radius: 0 !important;
+      color: var(--text-muted) !important;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      position: relative;
+      box-shadow: none !important;
+      transform: none !important;
+    }
+    .tab-btn:hover { color: var(--text) !important; background: none !important; }
+    .tab-btn.active {
+      color: var(--primary) !important;
+    }
+    .tab-btn.active::after {
+      content: "";
+      position: absolute;
+      bottom: -2px; left: 0; right: 0;
+      height: 2px;
+      background: var(--primary);
+      border-radius: 2px 2px 0 0;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .saved-cv-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: var(--shadow-xs);
+    }
+    .saved-cv-icon {
+      width: 40px; height: 40px;
+      background: var(--primary-light);
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--primary);
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .saved-cv-info { flex: 1; min-width: 0; }
+    .saved-cv-info strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .saved-cv-info span {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .saved-cv-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      flex-shrink: 0;
+    }
+    .saved-cv-badge.done { background: var(--success-light); color: var(--success); }
+    .saved-cv-badge.processing { background: var(--warning-light); color: var(--warning); }
+    .saved-cv-badge.failed { background: var(--danger-light); color: var(--danger); }
+    .profile-empty {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--text-muted);
+    }
+    .profile-empty svg { margin-bottom: 12px; opacity: 0.35; }
+    .profile-empty p { font-size: 14px; margin: 0; }
+
+    /* ════════════════════════════════════════════
+       FORGOT / RESET PASSWORD
+    ════════════════════════════════════════════ */
+    #forgotForm, #resetPassForm {
+      display: none;
+    }
+    #forgotForm.visible, #resetPassForm.visible {
+      display: block;
+    }
+    .auth-back-link {
+      background: none !important;
+      border: none !important;
+      color: var(--text-muted) !important;
+      font-size: 13px !important;
+      padding: 0 !important;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      box-shadow: none !important;
+      transform: none !important;
+      margin-bottom: 8px;
+    }
+    .auth-back-link:hover { color: var(--text) !important; background: none !important; }
+    #forgotMsg, #resetPassMsg {
+      font-size: 13px;
+      min-height: 18px;
+      margin-top: 8px;
+      font-weight: 500;
+    }
+    .msg-success { color: var(--success); }
+    .msg-error { color: var(--danger); }
+
+    /* ════════════════════════════════════════════
+       HIDDEN
+    ════════════════════════════════════════════ */
+    .hidden { display: none !important; }
+
+    /* ════════════════════════════════════════════
+       MOBILE / RESPONSIVE
+    ════════════════════════════════════════════ */
+    @media (max-width: 900px) {
+      #builderPreviewLayout { flex-direction: column; }
+      #previewCard { width: 100%; position: static; }
+      #previewFrame { height: 620px; }
+    }
+
+    @media (max-width: 600px) {
+      .app-content { padding: 14px 12px 32px; }
+
+      #authScreen {
+        margin: 24px auto !important;
+        padding: 24px 18px 20px;
+      }
+
+      .card { padding: 16px; }
+
+      #topBar {
+        height: auto;
+        padding: 12px 16px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .mode-buttons { width: 100%; flex-direction: column; }
+      .mode-buttons .btn-upload,
+      .mode-buttons .btn-builder { width: 100%; justify-content: center; }
+
+      .subsection-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+      .subsection-header button { width: 100%; justify-content: center; }
+
+      #uploadForm button[type="submit"],
+      #builderForm button[type="submit"] {
+        width: 100%;
+        justify-content: center;
+      }
+
+      #builderSection, #uploadSection { padding: 16px; }
+
+      #candidateInfo { grid-template-columns: 1fr; }
+
+      select[multiple] { height: 120px; }
+
+      #previewFrame { height: 480px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── AUTH SCREEN ──────────────────────────────────────── -->
+  <div id="authScreen" class="card">
+    <div class="auth-brand">
+      <div class="auth-brand-icon">CV</div>
+      <span class="auth-brand-name">CVora</span>
+    </div>
+
+    <h2 id="authTitle">Welcome back</h2>
+    <p class="auth-subtitle">Sign in to your account to continue.</p>
+
+    <form id="authForm">
+      <div id="fullNameField" style="display:none;">
+        <label class="required-mark">Full Name</label>
+        <input id="authFullName" type="text" placeholder="Jane Smith" maxlength="100" />
+      </div>
+
+      <label class="required-mark">Email</label>
+      <input id="authEmail" type="email" placeholder="you@example.com" maxlength="120" required />
+
+      <label class="required-mark">Password</label>
+      <input id="authPassword" type="password" placeholder="Password" maxlength="100" required />
+
+      <div id="passwordRules" style="display:none;">
+        <div id="rule-length">&#x25CB; At least 8 characters</div>
+        <div id="rule-upper">&#x25CB; At least one uppercase letter</div>
+        <div id="rule-lower">&#x25CB; At least one lowercase letter</div>
+        <div id="rule-digit">&#x25CB; At least one number</div>
+        <div id="rule-special">&#x25CB; At least one special character (!@#$% etc.)</div>
+      </div>
+
+      <div id="authError"></div>
+
+      <button type="submit" id="authSubmitBtn">Login</button>
+    </form>
+
+    <p class="auth-footer" id="authToggleFooter">
+      <span id="authToggleText">Don't have an account?</span>
+      <button class="auth-toggle" id="authToggleBtn" type="button">Register</button>
+    </p>
+    <p class="auth-footer" id="forgotPasswordLink" style="margin-top:4px;">
+      <button class="auth-toggle" id="showForgotBtn" type="button">Forgot password?</button>
+    </p>
+
+    <!-- Forgot password form (shown in place of main form) -->
+    <div id="forgotForm">
+      <button class="auth-back-link" id="backToLoginBtn" type="button">&#8592; Back to login</button>
+      <h3 style="font-size:1rem;font-weight:700;margin:8px 0 4px;">Reset your password</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px;">Enter your email and we'll send you a reset link.</p>
+      <label class="required-mark">Email</label>
+      <input id="forgotEmail" type="email" placeholder="you@example.com" maxlength="120" />
+      <button type="button" id="forgotSubmitBtn" style="width:100%;margin-top:12px;padding:12px;font-size:15px;font-weight:600;">Send Reset Link</button>
+      <div id="forgotMsg"></div>
+    </div>
+
+    <!-- Reset password form (shown when ?token= is in URL) -->
+    <div id="resetPassForm">
+      <button class="auth-back-link" id="backFromResetBtn" type="button">&#8592; Back to login</button>
+      <h3 style="font-size:1rem;font-weight:700;margin:8px 0 4px;">Set new password</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px;">Choose a strong password for your account.</p>
+      <label class="required-mark">New Password</label>
+      <input id="resetPassInput" type="password" placeholder="New password" maxlength="100" />
+      <button type="button" id="resetPassSubmitBtn" style="width:100%;margin-top:12px;padding:12px;font-size:15px;font-weight:600;">Set New Password</button>
+      <div id="resetPassMsg"></div>
+    </div>
+  </div>
+
+  <!-- ── MAIN APP ─────────────────────────────────────────── -->
+  <div id="appScreen" class="hidden">
+
+    <div id="topBar">
+      <div class="topbar-brand">
+        <div class="topbar-logo">CV</div>
+        <h1>CVora</h1>
+      </div>
+      <div class="topbar-right">
+        <span id="loggedInEmail"></span>
+        <button type="button" id="profileNavBtn" onclick="showProfileView()">My Profile</button>
+        <button type="button" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <!-- Profile screen -->
+    <div id="profileScreen">
+      <div class="app-content">
+        <div class="profile-header-card">
+          <div class="profile-avatar" id="profileAvatar">?</div>
+          <div class="profile-meta">
+            <h2 id="profileName">—</h2>
+            <p id="profileEmail">—</p>
+          </div>
+          <button class="profile-back-btn" onclick="showMainView()">&#8592; Back</button>
+        </div>
+
+        <div class="profile-tabs">
+          <button class="tab-btn active" onclick="switchTab('cvs', this)">My CVs</button>
+          <button class="tab-btn" onclick="switchTab('matches', this)">Job Matches</button>
+          <button class="tab-btn" onclick="switchTab('liked', this)">&#9829; Saved Jobs</button>
+        </div>
+
+        <div id="tabCvs" class="tab-panel active">
+          <div id="profileCvsList"><p class="profile-empty">Loading...</p></div>
+        </div>
+        <div id="tabMatches" class="tab-panel">
+          <div id="profileMatchesList"><p class="profile-empty">Loading...</p></div>
+        </div>
+        <div id="tabLiked" class="tab-panel">
+          <div id="profileLikedList"><p class="profile-empty">Loading...</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main view -->
+    <div id="mainView">
+    <div class="app-content">
+
+      <!-- Hero strip -->
+      <div class="hero-strip">
+        <div class="hero-text">
+          <h2>Land your next role faster</h2>
+          <p>Upload or build your CV, get AI-matched to real jobs, and generate a tailored PDF in minutes.</p>
+        </div>
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <div class="hero-stat-value">AI</div>
+            <div class="hero-stat-label">Powered</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-value">PDF</div>
+            <div class="hero-stat-label">Export</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-value">&#127775;</div>
+            <div class="hero-stat-label">Job Match</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode selector -->
+      <div class="card mode-card">
+        <h2>Select Mode</h2>
+        <div class="mode-buttons">
+          <button type="button" class="btn-upload" onclick="showUpload()">Upload CV</button>
+          <button type="button" class="btn-builder" onclick="showBuilder()">Build CV</button>
+        </div>
+      </div>
+
+      <!-- Upload section -->
+      <div id="uploadSection">
+        <h2>Upload Your CV</h2>
+        <form id="uploadForm">
+          <label for="cv">CV File (PDF)</label>
+          <input type="file" id="cv" name="file" accept=".pdf" required />
+
+          <label>Job Location Preferences</label>
+          <div class="checkbox-group">
+            <label><input type="checkbox" value="remote" /> Remote</label>
+            <label><input type="checkbox" value="cv_location" /> CV Location</label>
+            <label><input type="checkbox" value="willing_to_relocate" /> Willing to Relocate</label>
+          </div>
+
+          <label for="relocationCountries">Relocation Countries <span style="text-transform:none;font-weight:400;letter-spacing:0;color:var(--text-muted)">(hold Cmd/Ctrl for multiple)</span></label>
+          <select id="relocationCountries" multiple size="6">
+            <optgroup label="Middle East &amp; North Africa">
+              <option value="AE">United Arab Emirates</option>
+              <option value="SA">Saudi Arabia</option>
+              <option value="QA">Qatar</option>
+              <option value="KW">Kuwait</option>
+              <option value="BH">Bahrain</option>
+              <option value="OM">Oman</option>
+              <option value="JO">Jordan</option>
+              <option value="LB">Lebanon</option>
+              <option value="EG">Egypt</option>
+              <option value="MA">Morocco</option>
+            </optgroup>
+            <optgroup label="Europe">
+              <option value="GB">United Kingdom</option>
+              <option value="DE">Germany</option>
+              <option value="FR">France</option>
+              <option value="NL">Netherlands</option>
+              <option value="CH">Switzerland</option>
+              <option value="SE">Sweden</option>
+              <option value="NO">Norway</option>
+              <option value="DK">Denmark</option>
+              <option value="FI">Finland</option>
+              <option value="BE">Belgium</option>
+              <option value="AT">Austria</option>
+              <option value="IE">Ireland</option>
+              <option value="ES">Spain</option>
+              <option value="IT">Italy</option>
+              <option value="PT">Portugal</option>
+              <option value="PL">Poland</option>
+              <option value="LU">Luxembourg</option>
+            </optgroup>
+            <optgroup label="Americas">
+              <option value="US">United States</option>
+              <option value="CA">Canada</option>
+              <option value="BR">Brazil</option>
+              <option value="MX">Mexico</option>
+            </optgroup>
+            <optgroup label="Asia Pacific">
+              <option value="SG">Singapore</option>
+              <option value="AU">Australia</option>
+              <option value="NZ">New Zealand</option>
+              <option value="IN">India</option>
+              <option value="JP">Japan</option>
+              <option value="KR">South Korea</option>
+              <option value="MY">Malaysia</option>
+              <option value="HK">Hong Kong</option>
+            </optgroup>
+            <optgroup label="Africa">
+              <option value="ZA">South Africa</option>
+              <option value="NG">Nigeria</option>
+              <option value="KE">Kenya</option>
+            </optgroup>
+            <optgroup label="Other">
+              <option value="TR">Turkey</option>
+            </optgroup>
+          </select>
+
+          <button type="submit" style="margin-top:18px;">Analyze CV</button>
+        </form>
+      </div>
+
+      <!-- Builder + Preview two-column layout -->
+      <div id="builderPreviewLayout">
+
+        <div id="builderSection" class="hidden">
+          <h2>Build Your CV</h2>
+
+          <form id="builderForm">
+            <h3>Quick Setup</h3>
+
+            <label>Profile Type</label>
+            <select id="userType">
+              <option value="student">Student</option>
+              <option value="graduate">Graduate</option>
+            </select>
+
+            <label class="required-mark">Target Fields (e.g. IT, Marketing, Finance)</label>
+            <input id="fields" type="text" placeholder="IT, Marketing, Finance" maxlength="200" required />
+
+            <label>Application Level</label>
+            <select id="level">
+              <option value="internship">Internship</option>
+              <option value="entry">Entry-level</option>
+              <option value="experienced">Experienced</option>
+            </select>
+
+            <h3>Personal &amp; Contact Information</h3>
+
+            <label class="required-mark">Full Name</label>
+            <input id="fullName" type="text" placeholder="Full Name" maxlength="100" required />
+
+            <label class="required-mark">Email</label>
+            <input id="email" type="email" placeholder="you@example.com" maxlength="120" required />
+
+            <label class="required-mark">Phone</label>
+            <input id="phone" type="tel" inputmode="tel" placeholder="+1 555 123 4567" maxlength="20"
+                   pattern="[+\d][\d\s\-\(\)]{5,18}" title="Enter a valid phone number" required />
+
+            <label>Location (optional)</label>
+            <input id="location" type="text" placeholder="City, Country" maxlength="100" />
+
+            <label>Professional Summary (optional)</label>
+            <textarea id="summary" placeholder="A short professional summary..." rows="4" maxlength="1000"></textarea>
+
+            <h3>Links</h3>
+            <div class="subsection-header">
+              <span>Online profiles &amp; websites</span>
+              <button type="button" id="addLinkBtn">+ Add Link</button>
+            </div>
+            <div id="linksEntries"></div>
+
+            <h3>Education</h3>
+            <div class="subsection-header">
+              <span>Add one or more entries</span>
+              <button type="button" id="addEducationBtn">+ Add Education</button>
+            </div>
+            <div id="educationEntries"></div>
+
+            <h3>Work Experience</h3>
+            <div class="subsection-header">
+              <span>Add if applicable</span>
+              <button type="button" id="addExperienceBtn">+ Add Experience</button>
+            </div>
+            <div id="experienceEntries"></div>
+
+            <h3>Projects</h3>
+            <div class="subsection-header">
+              <span>Add if applicable</span>
+              <button type="button" id="addProjectBtn">+ Add Project</button>
+            </div>
+            <div id="projectEntries"></div>
+
+            <h3>Skills</h3>
+
+            <label>Technical Skills</label>
+            <input id="technicalSkillInput" placeholder="Type skill and press Enter" />
+            <div id="technicalSkillsContainer"></div>
+
+            <label>Tools &amp; Technologies</label>
+            <input id="toolsSkillInput" placeholder="Type tool and press Enter" />
+            <div id="toolsSkillsContainer"></div>
+
+            <label>Soft Skills</label>
+            <input id="softSkillInput" placeholder="Type soft skill and press Enter" />
+            <div id="softSkillsContainer"></div>
+
+            <h3>Extracurricular Activities &amp; Leadership</h3>
+            <div class="subsection-header">
+              <span>Add if applicable</span>
+              <button type="button" id="addExtracurricularBtn">+ Add Extracurricular</button>
+            </div>
+            <div id="extracurricularEntries"></div>
+
+            <h3>Certifications</h3>
+            <div class="subsection-header">
+              <span>Add if applicable</span>
+              <button type="button" id="addCertificationBtn">+ Add Certification</button>
+            </div>
+            <div id="certificationEntries"></div>
+
+            <h3>Awards &amp; Achievements</h3>
+            <div class="subsection-header">
+              <span>Add if applicable</span>
+              <button type="button" id="addAwardBtn">+ Add Award</button>
+            </div>
+            <div id="awardEntries"></div>
+
+            <h3>Languages</h3>
+            <div class="subsection-header">
+              <span>Add if applicable</span>
+              <button type="button" id="addLanguageBtn">+ Add Language</button>
+            </div>
+            <div id="languageEntries"></div>
+
+            <h3>Job Search Preferences</h3>
+
+            <label>Where would you like to work?</label>
+            <div class="checkbox-group" id="builderPrefsSection">
+              <label><input type="checkbox" value="remote" /> Remote</label>
+              <label><input type="checkbox" value="cv_location" /> Based on my location (from above)</label>
+              <label><input type="checkbox" value="willing_to_relocate" /> Willing to Relocate</label>
+            </div>
+
+            <label for="builderRelocationCountries">Relocation Countries <span style="text-transform:none;font-weight:400;letter-spacing:0;color:var(--text-muted)">(hold Cmd/Ctrl for multiple)</span></label>
+            <select id="builderRelocationCountries" multiple size="6">
+              <optgroup label="Middle East &amp; North Africa">
+                <option value="AE">United Arab Emirates</option>
+                <option value="SA">Saudi Arabia</option>
+                <option value="QA">Qatar</option>
+                <option value="KW">Kuwait</option>
+                <option value="BH">Bahrain</option>
+                <option value="OM">Oman</option>
+                <option value="JO">Jordan</option>
+                <option value="LB">Lebanon</option>
+                <option value="EG">Egypt</option>
+                <option value="MA">Morocco</option>
+              </optgroup>
+              <optgroup label="Europe">
+                <option value="GB">United Kingdom</option>
+                <option value="DE">Germany</option>
+                <option value="FR">France</option>
+                <option value="NL">Netherlands</option>
+                <option value="CH">Switzerland</option>
+                <option value="SE">Sweden</option>
+                <option value="NO">Norway</option>
+                <option value="DK">Denmark</option>
+                <option value="FI">Finland</option>
+                <option value="BE">Belgium</option>
+                <option value="AT">Austria</option>
+                <option value="IE">Ireland</option>
+                <option value="ES">Spain</option>
+                <option value="IT">Italy</option>
+                <option value="PT">Portugal</option>
+                <option value="PL">Poland</option>
+                <option value="LU">Luxembourg</option>
+              </optgroup>
+              <optgroup label="Americas">
+                <option value="US">United States</option>
+                <option value="CA">Canada</option>
+                <option value="BR">Brazil</option>
+                <option value="MX">Mexico</option>
+              </optgroup>
+              <optgroup label="Asia Pacific">
+                <option value="SG">Singapore</option>
+                <option value="AU">Australia</option>
+                <option value="NZ">New Zealand</option>
+                <option value="IN">India</option>
+                <option value="JP">Japan</option>
+                <option value="KR">South Korea</option>
+                <option value="MY">Malaysia</option>
+                <option value="HK">Hong Kong</option>
+              </optgroup>
+              <optgroup label="Africa">
+                <option value="ZA">South Africa</option>
+                <option value="NG">Nigeria</option>
+                <option value="KE">Kenya</option>
+              </optgroup>
+              <optgroup label="Other">
+                <option value="TR">Turkey</option>
+              </optgroup>
+            </select>
+
+            <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+              <button type="submit" id="buildCvBtn">Build CV &amp; Preview</button>
+              <button type="button" id="resetBuilderBtn">Reset All Fields</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- CV Preview panel (always reserved; placeholder shown until PDF loads) -->
+        <div id="previewCard">
+          <div id="previewToolbar">
+            <strong>CV Preview</strong>
+            <button type="button" id="updatePreviewBtn">&#8635; Update</button>
+            <button type="button" id="findJobsBtn">Find Jobs</button>
+            <span id="previewStatus"></span>
+          </div>
+          <div id="previewPlaceholder">
+            <div class="preview-placeholder-icon">
+              <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+            </div>
+            <h3>CV Preview</h3>
+            <p>Fill in your details and click <strong>Build CV &amp; Preview</strong> to see your PDF here.</p>
+            <ul class="placeholder-steps">
+              <li><span class="step-num">1</span> Fill in your profile sections</li>
+              <li><span class="step-num">2</span> Click "Build CV &amp; Preview"</li>
+              <li><span class="step-num">3</span> Click "Find Jobs" to get matches</li>
+            </ul>
+          </div>
+          <iframe id="previewFrame" title="CV Preview" class="hidden"></iframe>
+        </div>
+
+      </div><!-- /builderPreviewLayout -->
+
+      <div id="statusCard" class="card hidden">
+        <h2>Status</h2>
+        <p id="statusText">Waiting...</p>
+      </div>
+
+      <div id="resultsCard" class="card hidden">
+        <h2>Results</h2>
+        <div id="candidateInfo"></div>
+        <h3>Matched Jobs</h3>
+        <div id="matchedJobs"></div>
+      </div>
+
+    </div><!-- /app-content -->
+    </div><!-- /mainView -->
+
+  </div><!-- /appScreen -->
+
+  <script src="/app.js"></script>
+</body>
+</html>

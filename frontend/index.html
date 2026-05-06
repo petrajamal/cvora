@@ -1369,6 +1369,12 @@
         <div id="rule-special">&#x25CB; At least one special character (!@#$% etc.)</div>
       </div>
 
+      <div id="confirmPasswordField" style="display:none;">
+        <label class="required-mark">Confirm Password</label>
+        <input id="authConfirmPassword" type="password" placeholder="Re-enter password" maxlength="100" />
+        <div id="confirmPasswordError" style="font-size:12px;color:var(--danger);min-height:16px;margin-top:2px;"></div>
+      </div>
+
       <div id="authError"></div>
 
       <button type="submit" id="authSubmitBtn">Login</button>
@@ -1400,6 +1406,16 @@
       <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px;">Choose a strong password for your account.</p>
       <label class="required-mark">New Password</label>
       <input id="resetPassInput" type="password" placeholder="New password" maxlength="100" />
+      <div id="resetPasswordRules" style="margin-top:6px;margin-bottom:8px;font-size:12px;line-height:2;background:var(--bg);border-radius:var(--radius-sm);padding:10px 14px;border:1px solid var(--border);">
+        <div id="reset-rule-length">&#x25CB; At least 8 characters</div>
+        <div id="reset-rule-upper">&#x25CB; At least one uppercase letter</div>
+        <div id="reset-rule-lower">&#x25CB; At least one lowercase letter</div>
+        <div id="reset-rule-digit">&#x25CB; At least one number</div>
+        <div id="reset-rule-special">&#x25CB; At least one special character (!@#$% etc.)</div>
+      </div>
+      <label class="required-mark">Confirm New Password</label>
+      <input id="resetPassConfirm" type="password" placeholder="Re-enter new password" maxlength="100" />
+      <div id="resetConfirmError" style="font-size:12px;color:var(--danger);min-height:16px;margin-top:2px;"></div>
       <button type="button" id="resetPassSubmitBtn" style="width:100%;margin-top:12px;padding:12px;font-size:15px;font-weight:600;">Set New Password</button>
       <div id="resetPassMsg"></div>
     </div>

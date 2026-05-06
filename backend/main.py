@@ -359,7 +359,7 @@ def reset_password(payload: dict, request: Request):
     rate_limit(f"reset:{request.client.host}", max_calls=10, window=300)
 
     raw_token    = sanitize(payload.get("token") or "", 200)
-    new_password = sanitize(payload.get("password") or "", 200)
+    new_password = sanitize(payload.get("new_password") or payload.get("password") or "", 200)
 
     if not raw_token or not new_password:
         raise HTTPException(status_code=400, detail="Token and new password are required.")

@@ -103,6 +103,9 @@ function showAuthScreen() {
     authToggleText.textContent = "Don't have an account?";
     fullNameField.style.display = "none";
     passwordRules.style.display = "none";
+    document.getElementById("confirmPasswordField").style.display = "none";
+    document.getElementById("confirmPasswordError").textContent = "";
+    document.getElementById("authConfirmPassword").value = "";
     authFullName.required = false;
   }
 }
@@ -125,6 +128,9 @@ authToggleBtn.addEventListener("click", () => {
   authError.textContent = "";
   fullNameField.style.display  = isLoginMode ? "none" : "block";
   passwordRules.style.display  = isLoginMode ? "none" : "block";
+  document.getElementById("confirmPasswordField").style.display = isLoginMode ? "none" : "block";
+  document.getElementById("confirmPasswordError").textContent = "";
+  document.getElementById("authConfirmPassword").value = "";
   authFullName.required        = !isLoginMode;
 });
 
@@ -158,6 +164,16 @@ authForm.addEventListener("submit", async (e) => {
   if (!isLoginMode && !full_name) {
     authError.textContent = "Please enter your full name.";
     return;
+  }
+
+  if (!isLoginMode) {
+    const confirm = document.getElementById("authConfirmPassword").value;
+    const confirmErr = document.getElementById("confirmPasswordError");
+    if (password !== confirm) {
+      confirmErr.textContent = "Passwords do not match.";
+      return;
+    }
+    confirmErr.textContent = "";
   }
 
   try {
@@ -1342,13 +1358,34 @@ document.getElementById("forgotSubmitBtn")?.addEventListener("click", async () =
   }
 });
 
+// Live rules checker for reset password form
+document.getElementById("resetPassInput")?.addEventListener("input", () => {
+  const p = document.getElementById("resetPassInput").value;
+  checkRule("reset-rule-length",  p.length >= 8);
+  checkRule("reset-rule-upper",   /[A-Z]/.test(p));
+  checkRule("reset-rule-lower",   /[a-z]/.test(p));
+  checkRule("reset-rule-digit",   /\d/.test(p));
+  checkRule("reset-rule-special", /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p));
+  const confirm = document.getElementById("resetPassConfirm")?.value || "";
+  const errEl = document.getElementById("resetConfirmError");
+  if (confirm) errEl.textContent = p !== confirm ? "Passwords do not match." : "";
+});
+
+document.getElementById("resetPassConfirm")?.addEventListener("input", () => {
+  const p = document.getElementById("resetPassInput")?.value || "";
+  const confirm = document.getElementById("resetPassConfirm").value;
+  document.getElementById("resetConfirmError").textContent = p !== confirm ? "Passwords do not match." : "";
+});
+
 document.getElementById("resetPassSubmitBtn")?.addEventListener("click", async () => {
   const newPassword = document.getElementById("resetPassInput")?.value || "";
+  const confirm     = document.getElementById("resetPassConfirm")?.value || "";
   const msgEl = document.getElementById("resetPassMsg");
   const params = new URLSearchParams(window.location.search);
   const token = params.get("token");
   if (!token) { if (msgEl) { msgEl.textContent = "Invalid or missing reset token."; msgEl.className = "msg-error"; } return; }
   if (!newPassword) { if (msgEl) { msgEl.textContent = "Please enter a password."; msgEl.className = "msg-error"; } return; }
+  if (newPassword !== confirm) { if (msgEl) { msgEl.textContent = "Passwords do not match."; msgEl.className = "msg-error"; } return; }
   if (msgEl) { msgEl.textContent = "Setting password…"; msgEl.className = ""; }
   try {
     const res = await fetch(`${BACKEND_URL}/reset-password`, {

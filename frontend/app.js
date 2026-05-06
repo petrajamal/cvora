@@ -63,7 +63,14 @@ async function apiFetch(url, options = {}) {
 function showApp() {
   authScreen.classList.add("hidden");
   appScreen.classList.remove("hidden");
-  loggedInEmail.textContent = localStorage.getItem("userFullName") || getEmail() || "";
+  const displayName = localStorage.getItem("userFullName") || getEmail() || "";
+  loggedInEmail.textContent = displayName;
+  // Set avatar initials
+  const avatarBtn = document.getElementById("profileBtn");
+  if (avatarBtn) {
+    const initials = displayName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+    avatarBtn.textContent = initials;
+  }
   // Always land on upload mode
   document.getElementById("uploadSection")?.classList.remove("hidden");
   document.getElementById("builderSection")?.classList.add("hidden");
@@ -1469,8 +1476,8 @@ async function loadProfileData() {
     const jobs = data.jobs || data;
 
     if (!jobs.length) {
-      if (cvsList)     cvsList.innerHTML     = "<div class='profile-empty'><p>No CVs yet. Build or upload one to get started.</p></div>";
-      if (matchesList) matchesList.innerHTML = "<div class='profile-empty'><p>No job matches yet.</p></div>";
+      if (cvsList)     cvsList.innerHTML     = "<div class='profile-empty'><div class='profile-empty-icon'>📄</div><strong>No CVs yet</strong><p>Build or upload a CV to get started.</p></div>";
+      if (matchesList) matchesList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>🎯</div><strong>No job matches yet</strong><p>Run job matching on a built CV to see results here.</p></div>";
     } else {
       if (cvsList) {
         cvsList.innerHTML = jobs.map(j => {
@@ -1487,7 +1494,7 @@ async function loadProfileData() {
       if (matchesList) {
         const withMatches = jobs.filter(j => j.match_count > 0);
         if (!withMatches.length) {
-          matchesList.innerHTML = "<div class='profile-empty'><p>No job matches yet. Run 'Find Jobs' on a built CV.</p></div>";
+          matchesList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>🎯</div><strong>No job matches yet</strong><p>Run 'Find Jobs' on a built CV to see results here.</p></div>";
         } else {
           matchesList.innerHTML = withMatches.map(j => {
             const date = j.created_at ? new Date(j.created_at).toLocaleDateString() : "—";
@@ -1517,7 +1524,7 @@ async function loadProfileData() {
     const liked = await res.json();
     if (!likedList) return;
     if (!liked.length) {
-      likedList.innerHTML = "<div class='profile-empty'><p>No saved jobs yet. Hit ♡ on any job result to save it here.</p></div>";
+      likedList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>♡</div><strong>No saved jobs yet</strong><p>Hit ♡ on any job result to save it here.</p></div>";
     } else {
       likedList.innerHTML = liked.map(l => `
         <div class="saved-cv-card">

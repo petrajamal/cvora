@@ -53,16 +53,21 @@
       --topbar-bg:       #1E293B;
       --topbar-border:   #334155;
 
+      --nav-bg:          rgba(255,255,255,0.88);
+      --nav-border:      rgba(226,232,240,0.9);
+      --nav-height:      54px;
+
       --radius-xs:  4px;
       --radius-sm:  6px;
       --radius:     10px;
       --radius-lg:  14px;
       --radius-xl:  18px;
 
-      --shadow-xs: 0 1px 2px rgba(0,0,0,0.05);
-      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-      --shadow:    0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
-      --shadow-lg: 0 10px 30px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
+      --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+      --shadow:    0 4px 16px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04);
+      --shadow-lg: 0 12px 36px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.05);
+      --shadow-primary: 0 4px 14px rgba(79,70,229,0.25);
     }
 
     /* ════════════════════════════════════════════
@@ -217,69 +222,100 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: var(--topbar-bg);
+      background: var(--nav-bg);
+      backdrop-filter: blur(14px) saturate(180%);
+      -webkit-backdrop-filter: blur(14px) saturate(180%);
       padding: 0 28px;
-      height: 70px;
+      height: var(--nav-height);
       position: sticky;
       top: 0;
       z-index: 100;
-      border-bottom: 1px solid var(--topbar-border);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      border-bottom: 1px solid var(--nav-border);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.05), 0 2px 12px rgba(0,0,0,0.04);
     }
 
     .topbar-brand {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 9px;
+      text-decoration: none;
     }
 
     .topbar-logo {
-      width: 28px;
-      height: 28px;
+      width: 26px;
+      height: 26px;
       background: var(--primary);
       border-radius: 7px;
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
       flex-shrink: 0;
+      box-shadow: 0 2px 6px rgba(79,70,229,0.35);
     }
 
     #topBar h1 {
-      font-size: 1.0rem;
+      font-size: 0.95rem;
       font-weight: 700;
-      color: white;
+      color: var(--text);
       margin: 0;
-      letter-spacing: -0.01em;
+      letter-spacing: -0.02em;
     }
 
     .topbar-right {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
     }
 
     #loggedInEmail {
-      font-size: 13px;
-      color: #94A3B8;
+      font-size: 12.5px;
+      color: var(--text-muted);
       font-weight: 400;
+      display: none;
     }
 
-    #topBar button {
-      padding: 7px 16px;
-      font-size: 13px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.15);
-      color: #CBD5E1;
-      border-radius: var(--radius-sm);
+    @media (min-width: 640px) { #loggedInEmail { display: block; } }
+
+    /* Profile avatar button */
+    #profileBtn {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 !important;
+      border: 2px solid var(--primary-border);
+      box-shadow: 0 0 0 0 var(--primary-ring);
+      transition: box-shadow 0.2s, transform 0.15s;
+    }
+    #profileBtn:hover {
+      box-shadow: 0 0 0 3px var(--primary-ring);
+      background: var(--primary);
+      transform: scale(1.05);
+    }
+
+    #topBar button:not(#profileBtn) {
+      padding: 6px 14px;
+      font-size: 12.5px;
+      background: transparent;
+      border: 1.5px solid var(--border);
+      color: var(--text-secondary);
+      border-radius: var(--radius);
       font-weight: 500;
     }
-    #topBar button:hover {
-      background: rgba(255,255,255,0.16);
-      color: white;
+    #topBar button:not(#profileBtn):hover {
+      background: var(--bg);
+      border-color: var(--border-strong);
+      color: var(--text);
       box-shadow: none;
     }
 
@@ -301,58 +337,53 @@
     .mode-card {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
       flex-wrap: wrap;
-      padding: 14px 20px;
+      padding: 12px 16px;
     }
 
     .mode-card h2 {
-      font-size: 11px;
-      font-weight: 700;
+      font-size: 12px;
+      font-weight: 600;
       color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.09em;
+      letter-spacing: 0;
       margin: 0;
       flex-shrink: 0;
     }
 
     .mode-buttons {
       display: flex;
-      gap: 10px;
+      gap: 6px;
       flex-wrap: wrap;
+      background: var(--bg);
+      border-radius: var(--radius);
+      padding: 3px;
+      border: 1px solid var(--border);
     }
 
-    .mode-buttons .btn-upload {
-      padding: 8px 22px;
-      font-size: 14px;
+    .mode-buttons .btn-upload,
+    .mode-buttons .btn-builder {
+      padding: 6px 18px;
+      font-size: 13px;
       font-weight: 500;
+      border-radius: calc(var(--radius) - 2px);
     }
 
     .mode-buttons .btn-builder {
-      padding: 8px 22px;
-      font-size: 14px;
-      font-weight: 500;
       background: transparent;
-      color: var(--primary);
-      border: 1.5px solid var(--primary-border);
+      color: var(--text-secondary);
+      border: none;
+      box-shadow: none;
     }
     .mode-buttons .btn-builder:hover {
-      background: var(--primary-light);
-      box-shadow: none;
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: var(--shadow-xs);
     }
 
     /* ════════════════════════════════════════════
        FORM COMPONENTS
     ════════════════════════════════════════════ */
-    label {
-      display: block;
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text-secondary);
-      margin: 14px 0 5px;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
 
     input[type="file"],
     input[type="text"],
@@ -389,45 +420,61 @@
     }
 
     input::placeholder, textarea::placeholder {
-      color: #B0BBCB;
+      color: #B8C4D0;
       font-weight: 400;
     }
 
     label {
       display: block;
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 600;
       color: var(--text-secondary);
       margin-bottom: 5px;
-      letter-spacing: 0.01em;
+      margin-top: 14px;
+      letter-spacing: 0.005em;
     }
 
-    textarea { resize: vertical; }
+    /* Field group: visually group label+input+helper together */
+    .field-group { margin-bottom: 4px; }
+    .field-hint {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      margin-top: 3px;
+      line-height: 1.4;
+    }
+
+    textarea { resize: vertical; min-height: 90px; }
 
     select[multiple] { height: 160px; }
 
     /* ── BUTTONS ── */
     button {
-      padding: 9px 18px;
+      padding: 8px 16px;
       border: none;
-      border-radius: var(--radius-sm);
+      border-radius: var(--radius);
       background: var(--primary);
       color: white;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 13.5px;
       font-family: 'Inter', system-ui, sans-serif;
       font-weight: 500;
       letter-spacing: 0.01em;
-      transition: background 0.15s, box-shadow 0.15s, transform 0.05s;
+      transition: background 0.15s, box-shadow 0.18s, transform 0.08s, border-color 0.15s;
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 6px;
+      white-space: nowrap;
     }
     button:hover {
       background: var(--primary-dark);
-      box-shadow: 0 2px 8px rgba(79,70,229,0.28);
+      box-shadow: var(--shadow-primary);
     }
-    button:active { transform: scale(0.98); }
+    button:active { transform: scale(0.97); }
+    button:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
 
     /* Checkbox group */
     .checkbox-group {
@@ -475,33 +522,29 @@
       justify-content: space-between;
       align-items: center;
       gap: 12px;
-      padding: 10px 0;
-      border-bottom: 1.5px solid var(--border);
-      margin: 6px 0 14px;
+      padding: 8px 0;
+      margin: 4px 0 12px;
     }
 
     .subsection-header h4,
     .subsection-header span {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 0;
       margin: 0;
     }
 
     .subsection-header button {
-      padding: 5px 14px;
-      font-size: 11px;
-      background: var(--primary-light);
+      padding: 5px 12px;
+      font-size: 12px;
+      background: transparent;
       color: var(--primary);
       border: 1.5px solid var(--primary-border);
-      font-weight: 700;
-      letter-spacing: 0.03em;
+      font-weight: 600;
     }
     .subsection-header button:hover {
-      background: var(--primary);
-      color: white;
+      background: var(--primary-light);
       box-shadow: none;
     }
 
@@ -509,32 +552,41 @@
        ENTRY CARDS
     ════════════════════════════════════════════ */
     .entry-card {
-      border: 1.5px solid var(--border);
-      border-left: 4px solid var(--primary);
-      border-radius: var(--radius);
-      padding: 16px 16px 12px;
-      margin-bottom: 12px;
-      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 18px 14px;
+      margin-bottom: 10px;
+      background: var(--surface);
       box-shadow: var(--shadow-xs);
+      position: relative;
+    }
+
+    .entry-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 14px; bottom: 14px;
+      width: 3px;
+      background: var(--primary);
+      border-radius: 0 2px 2px 0;
+      opacity: 0.6;
     }
 
     .entry-card h4 {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--primary);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 10px;
-      margin-top: 2px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 0;
+      margin-bottom: 12px;
+      margin-top: 0;
     }
 
     .entry-card label {
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 600;
       color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0;
       margin: 10px 0 4px;
+      text-transform: none;
     }
 
     .entry-card input[type="checkbox"] {
@@ -693,27 +745,31 @@
     }
 
     #builderSection h3 {
-      font-size: 11px;
+      font-size: 13px;
       font-weight: 700;
-      color: var(--primary);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin: 28px 0 14px;
-      padding: 0 0 10px;
-      border-bottom: 2px solid var(--primary-light);
+      color: var(--text);
+      letter-spacing: -0.01em;
+      margin: 32px 0 16px;
+      padding: 14px 0 14px;
+      border-top: 1px solid var(--border);
       display: flex;
       align-items: center;
+      gap: 8px;
     }
 
     #builderSection h3::before {
       content: '';
       display: inline-block;
       width: 3px;
-      height: 13px;
+      height: 14px;
       background: var(--primary);
-      border-radius: 2px;
-      margin-right: 8px;
+      border-radius: 99px;
       flex-shrink: 0;
+    }
+
+    #builderSection h3:first-of-type {
+      border-top: none;
+      margin-top: 16px;
     }
 
     #buildCvBtn {
@@ -743,16 +799,19 @@
        CV PREVIEW PANEL
     ════════════════════════════════════════════ */
     #previewCard {
-      width: 370px;
+      width: 400px;
       flex-shrink: 0;
       position: sticky;
-      top: 86px;
+      top: calc(var(--nav-height) + 16px);
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow);
       padding: 16px;
       margin-bottom: 20px;
+      max-height: calc(100vh - var(--nav-height) - 32px);
+      display: flex;
+      flex-direction: column;
     }
 
     #previewToolbar {
@@ -808,7 +867,9 @@
 
     #previewFrame {
       width: 100%;
-      height: 840px;
+      flex: 1;
+      min-height: 0;
+      height: calc(100vh - var(--nav-height) - 130px);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       display: block;
@@ -896,10 +957,11 @@
        MODE BUTTON ACTIVE STATE
     ════════════════════════════════════════════ */
     .mode-buttons button.mode-active {
-      background: var(--topbar-bg) !important;
-      border-color: var(--topbar-bg) !important;
-      color: white !important;
+      background: var(--surface) !important;
+      border: none !important;
+      color: var(--text) !important;
       box-shadow: var(--shadow-sm) !important;
+      font-weight: 600 !important;
     }
 
     /* ════════════════════════════════════════════
@@ -1240,11 +1302,32 @@
     .saved-cv-badge.failed { background: var(--danger-light); color: var(--danger); }
     .profile-empty {
       text-align: center;
-      padding: 48px 24px;
+      padding: 56px 24px;
       color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
     }
-    .profile-empty svg { margin-bottom: 12px; opacity: 0.35; }
-    .profile-empty p { font-size: 14px; margin: 0; }
+    .profile-empty-icon {
+      width: 52px;
+      height: 52px;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+    .profile-empty strong {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: block;
+    }
+    .profile-empty p { font-size: 13px; margin: 0; max-width: 260px; line-height: 1.5; }
 
     /* ════════════════════════════════════════════
        FORGOT / RESET PASSWORD
@@ -1303,11 +1386,8 @@
       .card { padding: 16px; }
 
       #topBar {
-        height: auto;
-        padding: 12px 16px;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
+        height: var(--nav-height);
+        padding: 0 16px;
       }
 
       .mode-buttons { width: 100%; flex-direction: column; }
@@ -1431,8 +1511,8 @@
       </div>
       <div class="topbar-right">
         <span id="loggedInEmail"></span>
-        <button type="button" id="profileNavBtn" onclick="showProfileView()">My Profile</button>
-        <button type="button" onclick="logout()">Logout</button>
+        <button type="button" id="profileBtn" id="profileNavBtn" onclick="showProfileView()" title="My Profile" aria-label="My Profile">?</button>
+        <button type="button" onclick="logout()">Sign out</button>
       </div>
     </div>
 

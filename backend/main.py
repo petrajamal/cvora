@@ -523,6 +523,10 @@ def get_liked_jobs(user_id: str = Depends(get_current_user_id)):
 def root():
     return {"message": "API is running"}
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 
 @app.post("/upload-cv")
 async def upload_cv(

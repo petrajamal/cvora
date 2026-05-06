@@ -336,7 +336,8 @@ function addLinkEntry() {
 function addEducationEntry() {
   const container = document.getElementById("educationEntries");
   container.insertAdjacentHTML("beforeend", createEntryCard("Education", `
-    <input class="education-institution" placeholder="Institution *" maxlength="200" required />
+    <label class="required-mark">Institution</label>
+    <input class="education-institution" placeholder="e.g. University of Oxford" maxlength="200" required />
 
     <label>Degree / Type of Study *</label>
     <select class="education-degree-select" required>

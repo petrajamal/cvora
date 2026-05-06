@@ -222,16 +222,14 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: var(--nav-bg);
-      backdrop-filter: blur(14px) saturate(180%);
-      -webkit-backdrop-filter: blur(14px) saturate(180%);
+      background: var(--topbar-bg);
       padding: 0 28px;
       height: var(--nav-height);
       position: sticky;
       top: 0;
       z-index: 100;
-      border-bottom: 1px solid var(--nav-border);
-      box-shadow: 0 1px 0 rgba(0,0,0,0.05), 0 2px 12px rgba(0,0,0,0.04);
+      border-bottom: 1px solid var(--topbar-border);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.2), 0 2px 12px rgba(0,0,0,0.1);
     }
 
     .topbar-brand {
@@ -260,7 +258,7 @@
     #topBar h1 {
       font-size: 0.95rem;
       font-weight: 700;
-      color: var(--text);
+      color: white;
       margin: 0;
       letter-spacing: -0.02em;
     }
@@ -268,12 +266,12 @@
     .topbar-right {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
     #loggedInEmail {
       font-size: 12.5px;
-      color: var(--text-muted);
+      color: #94A3B8;
       font-weight: 400;
       display: none;
     }
@@ -293,29 +291,29 @@
       align-items: center;
       justify-content: center;
       padding: 0 !important;
-      border: 2px solid var(--primary-border);
-      box-shadow: 0 0 0 0 var(--primary-ring);
-      transition: box-shadow 0.2s, transform 0.15s;
+      border: 2px solid rgba(255,255,255,0.15);
+      transition: opacity 0.15s, transform 0.15s;
+      box-shadow: none;
     }
     #profileBtn:hover {
-      box-shadow: 0 0 0 3px var(--primary-ring);
+      opacity: 0.85;
       background: var(--primary);
-      transform: scale(1.05);
+      transform: scale(1.06);
+      box-shadow: none;
     }
 
     #topBar button:not(#profileBtn) {
       padding: 6px 14px;
       font-size: 12.5px;
-      background: transparent;
-      border: 1.5px solid var(--border);
-      color: var(--text-secondary);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      color: #CBD5E1;
       border-radius: var(--radius);
       font-weight: 500;
     }
     #topBar button:not(#profileBtn):hover {
-      background: var(--bg);
-      border-color: var(--border-strong);
-      color: var(--text);
+      background: rgba(255,255,255,0.16);
+      color: white;
       box-shadow: none;
     }
 
@@ -773,11 +771,9 @@
     }
 
     #buildCvBtn {
-      margin-top: 20px;
       padding: 11px 26px;
       font-size: 15px;
       font-weight: 600;
-      border-radius: var(--radius);
     }
 
     #resetBuilderBtn {
@@ -1511,7 +1507,8 @@
       </div>
       <div class="topbar-right">
         <span id="loggedInEmail"></span>
-        <button type="button" id="profileBtn" id="profileNavBtn" onclick="showProfileView()" title="My Profile" aria-label="My Profile">?</button>
+        <button type="button" id="profileNavBtn" onclick="showProfileView()">Profile</button>
+        <button type="button" id="profileBtn" onclick="showProfileView()" title="My Profile" aria-label="My Profile">?</button>
         <button type="button" onclick="logout()">Sign out</button>
       </div>
     </div>

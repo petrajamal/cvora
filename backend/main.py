@@ -6,9 +6,6 @@ import os
 import json
 import re
 import time
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from collections import defaultdict
 from datetime import datetime
 
@@ -202,23 +199,16 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 DEV_MODE = os.getenv("DEV_MODE", "true").lower() == "true"
 
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER", "")
-SMTP_PASS = os.getenv("SMTP_PASS", "")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://127.0.0.1")
-print(f"[STARTUP] SMTP_USER={'set' if SMTP_USER else 'MISSING'} SMTP_PASS={'set' if SMTP_PASS else 'MISSING'} FRONTEND_URL={FRONTEND_URL}", flush=True)
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+FRONTEND_URL   = os.getenv("FRONTEND_URL", "http://127.0.0.1")
+print(f"[STARTUP] RESEND={'set' if RESEND_API_KEY else 'MISSING'} FRONTEND_URL={FRONTEND_URL}", flush=True)
 
 
 def _send_reset_email(to_email: str, raw_token: str):
-    if not SMTP_USER or not SMTP_PASS:
-        print("[EMAIL] SMTP not configured — skipping email send.", flush=True)
+    if not RESEND_API_KEY:
+        print("[EMAIL] RESEND_API_KEY not set — skipping.", flush=True)
         return
     reset_link = f"{FRONTEND_URL}?token={raw_token}"
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = "Reset your CVora password"
-    msg["From"]    = f"CVora <{SMTP_USER}>"
-    msg["To"]      = to_email
     html = f"""
     <div style="font-family:Inter,system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#0F172A;">
       <div style="margin-bottom:24px;">
@@ -230,15 +220,24 @@ def _send_reset_email(to_email: str, raw_token: str):
       <p style="color:#94A3B8;margin-top:24px;font-size:12px;">If you didn't request this, you can safely ignore this email.</p>
     </div>
     """
-    msg.attach(MIMEText(html, "html"))
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(SMTP_USER, to_email, msg.as_string())
-        print(f"[EMAIL] Reset email sent to {to_email}", flush=True)
+        resp = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+            json={
+                "from": "CVora <noreply@cvora.live>",
+                "to": [to_email],
+                "subject": "Reset your CVora password",
+                "html": html,
+            },
+            timeout=10,
+        )
+        if resp.status_code == 200 or resp.status_code == 201:
+            print(f"[EMAIL] Sent to {to_email}", flush=True)
+        else:
+            print(f"[EMAIL] Resend error {resp.status_code}: {resp.text}", flush=True)
     except Exception as exc:
-        print(f"[EMAIL] Failed to send email: {exc}", flush=True)
+        print(f"[EMAIL] Failed: {exc}", flush=True)
 
 
 # ── Auth routes ───────────────────────────────────────────────────────────────

@@ -1315,7 +1315,6 @@ while True:
     job = None   # ensure visible in except block
 
     try:
-        print("🔍 Checking for jobs...")
         job = db.query(Job).filter(
             Job.status.in_(["pending", "pending_matching"])
         ).first()
@@ -1563,4 +1562,4 @@ INPUT:
     finally:
         db.close()
 
-    time.sleep(3)
+    time.sleep(2 if job else 10)

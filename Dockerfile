@@ -1,14 +1,12 @@
 FROM python:3.11-slim
 
-# System deps (curl for healthcheck)
+# System deps + LaTeX for PDF CV generation
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    texlive-latex-extra \
+    texlive-fonts-recommended \
+    texlive-fonts-extra \
     && rm -rf /var/lib/apt/lists/*
-
-# LaTeX (needed for PDF CV generation — uncomment when ready)
-# RUN apt-get update && apt-get install -y --no-install-recommends \
-#     texlive-latex-extra texlive-fonts-recommended texlive-fonts-extra \
-#     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

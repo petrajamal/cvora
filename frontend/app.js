@@ -1483,12 +1483,31 @@ async function loadProfileData() {
       if (cvsList) {
         cvsList.innerHTML = jobs.map(j => {
           const date = j.created_at ? new Date(j.created_at).toLocaleDateString() : "—";
-          const name = escapeHtml(j.filename || "Untitled CV");
-          const badgeClass = j.status === "done" ? "done" : j.status === "failed" ? "failed" : "processing";
-          return `<div class="saved-cv-card">
-            <div class="saved-cv-icon">📄</div>
-            <div class="saved-cv-info"><strong>${name}</strong><span>${date}</span></div>
-            <span class="saved-cv-badge ${badgeClass}">${escapeHtml(j.status)}</span>
+          const name = escapeHtml(j.display_name || j.filename || "Untitled CV");
+          const isUpload = j.cv_type === "upload";
+          const typeLabel = isUpload ? "Uploaded" : "Built";
+          const typeClass = isUpload ? "upload" : "";
+          const statusClass = j.status === "done" || j.status === "cv_generated" ? "done" : j.status?.startsWith("fail") ? "failed" : "processing";
+          const statusLabel = j.status === "cv_generated" ? "Ready" : j.status === "done" ? "Matched" : j.status || "—";
+
+          const dlPdfBtn   = j.has_pdf    ? `<button class="btn-ghost-sm" onclick="downloadCvPdf('${j.job_id}')">⬇ PDF</button>` : "";
+          const dlUploadBtn = j.has_upload ? `<button class="btn-ghost-sm" onclick="downloadUploadedCv('${j.job_id}')">⬇ Original</button>` : "";
+          const editBtn    = !isUpload    ? `<button class="btn-ghost-sm" onclick="editBuilderCv('${j.job_id}')">✏ Edit</button>` : "";
+
+          return `<div class="saved-cv-card" id="cv-card-${j.job_id}">
+            <div class="saved-cv-icon">${isUpload ? "📤" : "🛠"}</div>
+            <div class="saved-cv-info">
+              <div class="cv-name-wrap">
+                <strong id="cv-name-${j.job_id}">${name}</strong>
+                <span class="cv-type-badge ${typeClass}">${typeLabel}</span>
+              </div>
+              <span>${date} · <span class="saved-cv-badge ${statusClass}" style="display:inline;padding:1px 6px;font-size:10px;">${statusLabel}</span></span>
+            </div>
+            <div class="cv-card-actions">
+              ${dlPdfBtn}${dlUploadBtn}${editBtn}
+              <button class="btn-ghost-sm" onclick="startRename('${j.job_id}', this)" title="Rename">✎</button>
+              <button class="btn-danger-sm" onclick="deleteCv('${j.job_id}')">✕</button>
+            </div>
           </div>`;
         }).join("");
       }
@@ -1542,3 +1561,316 @@ async function loadProfileData() {
     if (likedList) likedList.innerHTML = "<div class='profile-empty'><p>Failed to load saved jobs.</p></div>";
   }
 }
+
+// ── CV Management Handlers ────────────────────────────────────────────────────
+
+window.startRename = function (jobId, btn) {
+  const nameEl = document.getElementById(`cv-name-${jobId}`);
+  if (!nameEl) return;
+
+  // If already renaming, cancel
+  const existing = nameEl.parentElement.querySelector(".cv-rename-input");
+  if (existing) {
+    existing.remove();
+    nameEl.style.display = "";
+    btn.textContent = "✎";
+    btn.title = "Rename";
+    return;
+  }
+
+  // Show inline input
+  const currentName = nameEl.textContent.trim();
+  nameEl.style.display = "none";
+
+  const input = document.createElement("input");
+  input.className = "cv-rename-input";
+  input.value = currentName;
+  input.maxLength = 100;
+  nameEl.parentElement.insertBefore(input, nameEl);
+  input.focus();
+  input.select();
+
+  btn.textContent = "✓";
+  btn.title = "Save";
+
+  async function saveRename() {
+    const newName = input.value.trim();
+    if (!newName || newName === currentName) {
+      input.remove();
+      nameEl.style.display = "";
+      btn.textContent = "✎";
+      btn.title = "Rename";
+      return;
+    }
+    try {
+      const res = await apiFetch(`${BACKEND_URL}/job/${jobId}/rename`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({ display_name: newName }),
+      });
+      if (!res.ok) throw new Error();
+      nameEl.textContent = newName;
+    } catch (_) {
+      alert("Failed to rename. Please try again.");
+    }
+    input.remove();
+    nameEl.style.display = "";
+    btn.textContent = "✎";
+    btn.title = "Rename";
+  }
+
+  btn.onclick = saveRename;
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") saveRename();
+    if (e.key === "Escape") {
+      input.remove();
+      nameEl.style.display = "";
+      btn.textContent = "✎";
+      btn.title = "Rename";
+      btn.onclick = () => window.startRename(jobId, btn);
+    }
+  });
+};
+
+window.deleteCv = async function (jobId) {
+  if (!confirm("Delete this CV? This cannot be undone.")) return;
+  try {
+    const res = await apiFetch(`${BACKEND_URL}/job/${jobId}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error();
+    document.getElementById(`cv-card-${jobId}`)?.remove();
+    const cvsList = document.getElementById("profileCvsList");
+    if (cvsList && cvsList.children.length === 0) {
+      cvsList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>📄</div><strong>No CVs yet</strong><p>Build or upload a CV to get started.</p></div>";
+    }
+  } catch (_) {
+    alert("Failed to delete. Please try again.");
+  }
+};
+
+window.downloadCvPdf = async function (jobId) {
+  try {
+    const res = await apiFetch(`${BACKEND_URL}/download-cv/${jobId}`, { headers: authHeaders() });
+    if (!res.ok) throw new Error();
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cv-${jobId}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (_) {
+    alert("Failed to download PDF. Please try again.");
+  }
+};
+
+window.downloadUploadedCv = async function (jobId) {
+  try {
+    const res = await apiFetch(`${BACKEND_URL}/download-upload/${jobId}`, { headers: authHeaders() });
+    if (!res.ok) throw new Error();
+    const cd = res.headers.get("Content-Disposition") || "";
+    const match = cd.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : `uploaded-cv-${jobId}.pdf`;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (_) {
+    alert("Failed to download original CV. Please try again.");
+  }
+};
+
+window.editBuilderCv = async function (jobId) {
+  try {
+    const res = await apiFetch(`${BACKEND_URL}/my-jobs`, { headers: authHeaders() });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const jobs = data.jobs || data;
+    const job = jobs.find(j => j.job_id === jobId);
+    if (!job || !job.candidate_profile) {
+      alert("Could not load CV data.");
+      return;
+    }
+
+    const p = typeof job.candidate_profile === "string"
+      ? JSON.parse(job.candidate_profile)
+      : job.candidate_profile;
+
+    // Switch to builder mode and navigate to main view
+    document.getElementById("profileScreen")?.classList.remove("visible");
+    document.getElementById("mainView")?.removeAttribute("style");
+    window.showBuilder();
+
+    // Reset first so we start clean
+    resetBuilder();
+
+    // Personal info
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ""; };
+    setVal("fullName", p.full_name);
+    setVal("email", p.email);
+    setVal("phone", p.phone);
+    setVal("location", p.location);
+    setVal("summary", p.summary);
+
+    // Setup section
+    if (p.setup) {
+      setVal("userType", p.setup.user_type);
+      setVal("fields", (p.setup.target_fields || []).join(", "));
+      setVal("level", p.setup.application_level);
+    }
+
+    // Skills
+    technicalSkills.length = 0;
+    toolsSkills.length = 0;
+    softSkills.length = 0;
+    if (p.skill_groups) {
+      (p.skill_groups.technical || []).forEach(s => technicalSkills.push(s));
+      (p.skill_groups.tools     || []).forEach(s => toolsSkills.push(s));
+      (p.skill_groups.soft      || []).forEach(s => softSkills.push(s));
+    } else {
+      (p.skills || []).forEach(s => technicalSkills.push(s));
+    }
+    renderSkillChips("technicalSkillsContainer", technicalSkills);
+    renderSkillChips("toolsSkillsContainer", toolsSkills);
+    renderSkillChips("softSkillsContainer", softSkills);
+
+    // Links — clear default entry first
+    document.getElementById("linksEntries").innerHTML = "";
+    (p.links || []).forEach(l => {
+      addLinkEntry();
+      const card = document.querySelector("#linksEntries .entry-card:last-child");
+      if (!card) return;
+      const sel = card.querySelector(".link-type-select");
+      if (sel) {
+        const opt = Array.from(sel.options).find(o => o.value === l.type);
+        if (opt) { sel.value = l.type; }
+        else { sel.value = "other"; sel.dispatchEvent(new Event("change")); card.querySelector(".link-type-custom").value = l.type || ""; }
+      }
+      const urlEl = card.querySelector(".link-url");
+      if (urlEl) urlEl.value = l.url || "";
+      const dispEl = card.querySelector(".link-display");
+      if (dispEl) dispEl.value = l.display || "";
+    });
+
+    // Education — clear default entry first
+    document.getElementById("educationEntries").innerHTML = "";
+    (p.education || []).forEach(edu => {
+      addEducationEntry();
+      const card = document.querySelector("#educationEntries .entry-card:last-child");
+      if (!card) return;
+      card.querySelector(".education-institution").value = edu.institution || "";
+      const degSel = card.querySelector(".education-degree-select");
+      const degOther = card.querySelector(".education-degree-other");
+      const degOpt = Array.from(degSel.options).find(o => o.value === edu.degree);
+      if (degOpt) { degSel.value = edu.degree; }
+      else { degSel.value = "Other"; degSel.dispatchEvent(new Event("change")); degOther.value = edu.degree || ""; }
+      card.querySelector(".education-field").value = edu.field_of_study || "";
+      card.querySelector(".education-start").value = edu.start_date || "";
+      if (!edu.end_date) {
+        card.querySelector(".education-currently-enrolled").checked = true;
+        card.querySelector(".education-end").disabled = true;
+      } else {
+        card.querySelector(".education-end").value = edu.end_date || "";
+      }
+      // Grade
+      if (edu.gpa) {
+        const gradeType = card.querySelector(".education-grade-type");
+        if (edu.gpa.startsWith("GPA:")) {
+          gradeType.value = "gpa"; gradeType.dispatchEvent(new Event("change"));
+          card.querySelector(".education-gpa-number").value = edu.gpa.replace("GPA:", "").trim();
+        } else if (edu.gpa.endsWith("%")) {
+          gradeType.value = "percentage"; gradeType.dispatchEvent(new Event("change"));
+          card.querySelector(".education-pct-number").value = edu.gpa.replace("%", "").trim();
+        } else {
+          gradeType.value = "letter"; gradeType.dispatchEvent(new Event("change"));
+          card.querySelector(".education-letter-select").value = edu.gpa;
+        }
+      }
+    });
+
+    // Work experience
+    document.getElementById("experienceEntries").innerHTML = "";
+    (p.work_experience || []).forEach(exp => {
+      addExperienceEntry();
+      const card = document.querySelector("#experienceEntries .entry-card:last-child");
+      if (!card) return;
+      card.querySelector(".experience-organization").value = exp.organization || "";
+      card.querySelector(".experience-position").value = exp.position || "";
+      card.querySelector(".experience-start").value = exp.start_date || "";
+      if (!exp.end_date) {
+        card.querySelector(".experience-currently-working").checked = true;
+        card.querySelector(".experience-end").disabled = true;
+      } else {
+        card.querySelector(".experience-end").value = exp.end_date || "";
+      }
+      card.querySelector(".experience-location").value = exp.location || "";
+      card.querySelector(".experience-description").value = (exp.description || []).join("\n");
+    });
+
+    // Projects
+    document.getElementById("projectEntries").innerHTML = "";
+    (p.projects || []).forEach(proj => {
+      addProjectEntry();
+      const card = document.querySelector("#projectEntries .entry-card:last-child");
+      if (!card) return;
+      card.querySelector(".project-title").value = proj.title || "";
+      card.querySelector(".project-role").value = proj.role || "";
+      card.querySelector(".project-technologies").value = (proj.technologies || []).join(", ");
+      if (proj.link) {
+        const addBtn = card.querySelector(".add-url-btn");
+        const urlRow = card.querySelector(".url-row");
+        if (addBtn && urlRow) { addBtn.style.display = "none"; urlRow.style.display = ""; }
+        card.querySelector(".project-link").value = proj.link;
+      }
+      card.querySelector(".project-description").value = (proj.description || []).join("\n");
+    });
+
+    // Extracurriculars
+    document.getElementById("extracurricularEntries").innerHTML = "";
+    (p.extracurriculars || []).forEach(ex => {
+      addExtracurricularEntry();
+      const card = document.querySelector("#extracurricularEntries .entry-card:last-child");
+      if (!card) return;
+      card.querySelector(".extracurricular-title").value = ex.title || "";
+      card.querySelector(".extracurricular-role").value = ex.role || "";
+      card.querySelector(".extracurricular-organization").value = ex.organization || "";
+      card.querySelector(".extracurricular-date").value = ex.date || "";
+      card.querySelector(".extracurricular-description").value = (ex.description || []).join("\n");
+    });
+
+    // Certifications
+    document.getElementById("certificationEntries").innerHTML = "";
+    (p.certifications || []).forEach(cert => {
+      addCertificationEntry();
+      const card = document.querySelector("#certificationEntries .entry-card:last-child");
+      if (!card) return;
+      card.querySelector(".certification-title").value = cert.title || "";
+      card.querySelector(".certification-date").value = cert.date || "";
+      card.querySelector(".certification-organization").value = cert.organization || "";
+    });
+
+    // Languages
+    document.getElementById("languageEntries").innerHTML = "";
+    (p.languages || []).forEach(lang => {
+      if (typeof addLanguageEntry === "function") {
+        addLanguageEntry();
+        const card = document.querySelector("#languageEntries .entry-card:last-child");
+        if (!card) return;
+        card.querySelector(".language-name").value = lang.language || "";
+        const lvl = card.querySelector(".language-level");
+        if (lvl) lvl.value = lang.proficiency || "";
+      }
+    });
+
+    // Scroll to top of builder
+    document.getElementById("builderSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  } catch (err) {
+    alert("Failed to load CV for editing. Please try again.");
+  }
+};

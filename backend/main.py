@@ -195,6 +195,8 @@ app.add_middleware(
 )
 
 Base.metadata.create_all(bind=engine)
+from database import run_migrations
+run_migrations()
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -412,7 +414,6 @@ def get_profile(user_id: str = Depends(get_current_user_id)):
 
 @app.get("/my-jobs")
 def my_jobs(user_id: str = Depends(get_current_user_id)):
-    """Return a summary list of this user's past CV builds / job matches."""
     db = SessionLocal()
     try:
         jobs = (
@@ -424,30 +425,88 @@ def my_jobs(user_id: str = Depends(get_current_user_id)):
         result = []
         for job in jobs:
             matched = json.loads(job.matched_jobs) if job.matched_jobs else []
-            # Prefer AI-structured data (upload flow), fall back to builder profile
             raw_profile = (
                 json.loads(job.ai_structured_data) if job.ai_structured_data else
                 json.loads(job.candidate_profile)  if job.candidate_profile  else {}
             )
             top = matched[0] if matched else None
+            cv_type = job.cv_type or ("upload" if job.file_path else "builder")
             result.append({
-                "job_id":         job.id,
-                "status":         job.status,
-                "filename":       job.filename,
-                "candidate_name": raw_profile.get("full_name"),
-                "match_count":    len(matched),
-                "top_match":      {
-                    "title":      top.get("title"),
-                    "company":    top.get("company"),
-                    "match_score": top.get("match_score"),
-                } if top else None,
-                "has_pdf":        bool(
-                    job.generated_pdf_path and
-                    os.path.exists(job.generated_pdf_path)
-                ),
-                "created_at":     job.created_at.isoformat() if job.created_at else None,
+                "job_id":           job.id,
+                "status":           job.status,
+                "status_message":   job.status_message,
+                "filename":         job.filename,
+                "display_name":     job.display_name or job.filename or "Untitled CV",
+                "cv_type":          cv_type,
+                "candidate_name":   raw_profile.get("full_name"),
+                "match_count":      len(matched),
+                "top_match":        {"title": top.get("title"), "company": top.get("company"), "match_score": top.get("match_score")} if top else None,
+                "has_pdf":          bool(job.generated_pdf_path),
+                "has_upload":       bool(job.file_path),
+                "candidate_profile": job.candidate_profile,
+                "created_at":       job.created_at.isoformat() if job.created_at else None,
             })
         return {"jobs": result}
+    finally:
+        db.close()
+
+
+@app.patch("/job/{job_id}/rename")
+def rename_job(job_id: str, payload: dict, user_id: str = Depends(get_current_user_id)):
+    name = sanitize(payload.get("name") or "", 120).strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name cannot be empty.")
+    db = SessionLocal()
+    try:
+        job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found.")
+        job.display_name = name
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+@app.delete("/job/{job_id}")
+def delete_job(job_id: str, user_id: str = Depends(get_current_user_id)):
+    db = SessionLocal()
+    try:
+        job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found.")
+        # Delete R2 objects
+        for key in [job.file_path, job.generated_pdf_path]:
+            if key:
+                r2.delete(key)
+        db.delete(job)
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+@app.get("/download-upload/{job_id}")
+def download_upload(job_id: str, user_id: str = Depends(get_current_user_id)):
+    db = SessionLocal()
+    try:
+        job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found.")
+        if not job.file_path:
+            raise HTTPException(status_code=404, detail="No uploaded file for this CV.")
+        try:
+            pdf_bytes = r2.download_bytes(job.file_path)
+        except Exception:
+            raise HTTPException(status_code=404, detail="File not found in storage.")
+        fname = job.display_name or job.filename or "cv.pdf"
+        if not fname.endswith(".pdf"):
+            fname += ".pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={fname}"},
+        )
     finally:
         db.close()
 
@@ -577,6 +636,8 @@ async def upload_cv(
             user_id=user_id,
             status="pending",
             filename=safe_name,
+            display_name=safe_name,
+            cv_type="upload",
             file_path=file_path,
             user_preferences=json.dumps(preferences),
         )
@@ -621,6 +682,8 @@ async def build_cv(
             id=job_id,
             user_id=user_id,
             status="pending",
+            cv_type="builder",
+            display_name=sanitize(candidate_profile.get("full_name") or "", 120) or "Built CV",
             candidate_profile=json.dumps(candidate_profile),
             user_preferences=json.dumps(preferences),
         )

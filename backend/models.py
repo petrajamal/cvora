@@ -32,6 +32,8 @@ class Job(Base):
     generated_tex_path = Column(Text, nullable=True)
     generated_pdf_path = Column(Text, nullable=True)
     status_message     = Column(Text, nullable=True)
+    display_name       = Column(String, nullable=True)
+    cv_type            = Column(String, nullable=True)  # "upload" | "builder"
     created_at         = Column(DateTime, server_default=func.now(), nullable=True)
 
 

@@ -19,3 +19,18 @@ else:
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+
+def run_migrations():
+    """Add new columns to existing tables without dropping data."""
+    migrations = [
+        "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS display_name VARCHAR",
+        "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS cv_type VARCHAR",
+    ]
+    with engine.connect() as conn:
+        for sql in migrations:
+            try:
+                conn.execute(__import__("sqlalchemy").text(sql))
+                conn.commit()
+            except Exception:
+                pass  # column already exists or SQLite (no IF NOT EXISTS support)

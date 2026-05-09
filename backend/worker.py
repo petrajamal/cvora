@@ -13,6 +13,7 @@ import html as html_module
 from database import SessionLocal
 from models import Job
 from dotenv import load_dotenv
+import r2
 from openai import OpenAI
 from datetime import datetime
 
@@ -1375,7 +1376,12 @@ while True:
                 job.status_message = "Extracting text from PDF..."
                 db.commit()
 
-                text = extract_text_from_pdf(job.file_path)
+                tmp_pdf = r2.download_to_tempfile(job.file_path, suffix=".pdf")
+                try:
+                    text = extract_text_from_pdf(tmp_pdf)
+                finally:
+                    try: os.remove(tmp_pdf)
+                    except Exception: pass
                 job.extracted_text = text
 
                 structured = extract_basic_info(text)
@@ -1496,8 +1502,15 @@ INPUT:
                     )
                     candidate_pdf = tex_path.replace(".tex", ".pdf")
                     if os.path.exists(candidate_pdf):
-                        pdf_path = candidate_pdf
-                        print(f"✅ PDF compiled: {pdf_path}")
+                        r2_key = f"generated/{job.id}.pdf"
+                        with open(candidate_pdf, "rb") as pf:
+                            r2.upload_bytes(r2_key, pf.read(), "application/pdf")
+                        pdf_path = r2_key
+                        print(f"✅ PDF uploaded to R2: {r2_key}")
+                        # clean up local temp files
+                        for tmp in [candidate_pdf, tex_path]:
+                            try: os.remove(tmp)
+                            except Exception: pass
                     else:
                         print("⚠️  pdflatex ran but PDF not found.")
                         print("── pdflatex stdout (last 1000 chars) ──")

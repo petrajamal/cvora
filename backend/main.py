@@ -13,6 +13,7 @@ from datetime import datetime
 from latex_gen import generate_latex_cv, compile_to_pdf
 
 from database import Base, engine, SessionLocal
+import r2
 from models import Job, User, PasswordResetToken, LikedJob
 from fastapi.middleware.cors import CORSMiddleware
 from auth import (
@@ -564,8 +565,7 @@ async def upload_cv(
         if not content.startswith(b"%PDF"):
             raise HTTPException(status_code=400, detail="File does not appear to be a valid PDF.")
 
-        with open(file_path, "wb") as f:
-            f.write(content)
+        r2.upload_bytes(file_path, content, content_type="application/pdf")
 
         preferences = {
             "modes": [sanitize(m, 50) for m in modes.split(",") if m.strip()],
@@ -674,12 +674,16 @@ def download_cv(
             raise HTTPException(status_code=404, detail="Job not found")
         if job.user_id != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
-        if not job.generated_pdf_path or not os.path.exists(job.generated_pdf_path):
+        if not job.generated_pdf_path:
             raise HTTPException(status_code=404, detail="PDF not ready yet")
-        return FileResponse(
-            job.generated_pdf_path,
+        try:
+            pdf_bytes = r2.download_bytes(job.generated_pdf_path)
+        except Exception:
+            raise HTTPException(status_code=404, detail="PDF not found in storage")
+        return Response(
+            content=pdf_bytes,
             media_type="application/pdf",
-            filename="cv.pdf",
+            headers={"Content-Disposition": "attachment; filename=cv.pdf"},
         )
     finally:
         db.close()

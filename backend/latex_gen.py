@@ -488,14 +488,21 @@ def compile_to_pdf(latex_source: str) -> bytes:
                 tex_path,
             ],
             capture_output=True,
-            text=True,
             timeout=60,
             env=_TEX_ENV,
         )
+        stdout = (result.stdout or b"").decode("utf-8", errors="replace")
+        stderr = (result.stderr or b"").decode("utf-8", errors="replace")
 
         if not os.path.exists(pdf_path):
-            tail = (result.stdout or "")[-1500:]
-            raise RuntimeError(f"pdflatex failed:\n{tail}")
+            # Give a clear message for unsupported scripts (Arabic, CJK, etc.)
+            combined = stdout + stderr
+            if any(ord(c) > 0x036F for c in latex_source[:500]):
+                raise RuntimeError(
+                    "The CV builder does not support non-Latin scripts (Arabic, CJK, etc.). "
+                    "Please use English or Latin-alphabet text."
+                )
+            raise RuntimeError(f"Preview generation failed:\n{combined[-1500:]}")
 
         with open(pdf_path, "rb") as fh:
             return fh.read()

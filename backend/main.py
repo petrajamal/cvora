@@ -500,6 +500,7 @@ def my_jobs(user_id: str = Depends(get_current_user_id)):
                 "match_count":      len(matched),
                 "top_match":        {"title": top.get("title"), "company": top.get("company"), "match_score": top.get("match_score")} if top else None,
                 "has_pdf":          bool(job.generated_pdf_path),
+                "has_latex":        bool(job.generated_latex),
                 "has_upload":       bool(job.file_path),
                 "candidate_profile": job.candidate_profile,
                 "created_at":       job.created_at.isoformat() if job.created_at else None,
@@ -887,6 +888,92 @@ def download_cv(
             content=pdf_bytes,
             media_type="application/pdf",
             headers={"Content-Disposition": "attachment; filename=cv.pdf"},
+        )
+    finally:
+        db.close()
+
+
+@app.post("/save-cv-only")
+async def save_cv_only(payload: dict, user_id: str = Depends(get_current_user_id)):
+    """Save a built CV to the user's profile without running job matching."""
+    candidate_profile = payload.get("candidate_profile")
+    display_name = sanitize(payload.get("display_name") or "My CV", 120)
+    if not candidate_profile:
+        raise HTTPException(status_code=400, detail="Missing candidate_profile")
+
+    try:
+        latex_source = generate_latex_cv(candidate_profile)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"LaTeX generation failed: {exc}")
+
+    pdf_bytes = None
+    pdf_path  = None
+    try:
+        pdf_bytes = compile_to_pdf(latex_source)
+    except Exception:
+        pass  # saved without PDF if pdflatex unavailable
+
+    job_id = str(uuid.uuid4())
+    if pdf_bytes:
+        pdf_path = f"generated/{job_id}.pdf"
+        r2.upload_bytes(pdf_path, pdf_bytes, content_type="application/pdf")
+
+    db = SessionLocal()
+    try:
+        job = Job(
+            id=job_id,
+            user_id=user_id,
+            filename=display_name,
+            display_name=display_name,
+            cv_type="built",
+            status="cv_generated",
+            status_message="CV saved.",
+            generated_latex=latex_source,
+            generated_pdf_path=pdf_path,
+            candidate_profile=json.dumps(candidate_profile),
+        )
+        db.add(job)
+        db.commit()
+        return {"job_id": job_id, "has_pdf": bool(pdf_bytes)}
+    finally:
+        db.close()
+
+
+@app.get("/download-cv/{job_id}/latex")
+def download_cv_latex(job_id: str, user_id: str = Depends(get_current_user_id)):
+    """Download the LaTeX source (.tex) for a built CV."""
+    db = SessionLocal()
+    try:
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job or job.user_id != user_id:
+            raise HTTPException(status_code=404, detail="Not found")
+        if not job.generated_latex:
+            raise HTTPException(status_code=404, detail="LaTeX source not available for this CV")
+        name = (job.display_name or job.filename or "cv").replace(" ", "_")
+        return Response(
+            content=job.generated_latex.encode("utf-8"),
+            media_type="application/x-tex",
+            headers={"Content-Disposition": f'attachment; filename="{name}.tex"'},
+        )
+    finally:
+        db.close()
+
+
+@app.get("/view-cv/{job_id}")
+def view_cv(job_id: str, user_id: str = Depends(get_current_user_id)):
+    """Return the PDF inline for the in-app viewer popup."""
+    db = SessionLocal()
+    try:
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job or job.user_id != user_id:
+            raise HTTPException(status_code=404, detail="Not found")
+        if not job.generated_pdf_path:
+            raise HTTPException(status_code=404, detail="PDF not available")
+        pdf_bytes = r2.download_bytes(job.generated_pdf_path)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": "inline; filename=cv.pdf"},
         )
     finally:
         db.close()

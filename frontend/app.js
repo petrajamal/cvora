@@ -988,7 +988,8 @@ function validateBuilderForm() {
 const previewCard   = document.getElementById("previewCard");
 const previewFrame  = document.getElementById("previewFrame");
 const previewStatus = document.getElementById("previewStatus");
-let   _previewBlobUrl = null;
+let   _previewBlobUrl    = null;
+let   _builderSavedJobId = null;
 
 async function updateCvPreview() {
   if (!validateBuilderForm()) return;
@@ -1019,6 +1020,10 @@ async function updateCvPreview() {
     if (_ph) _ph.style.display = "none";
     previewFrame.classList.remove("hidden");
     previewStatus.innerHTML = `<span class="preview-status-ok">Preview updated</span>`;
+    // Show save/download/view buttons
+    document.getElementById("saveCvBtn").style.display = "";
+    document.getElementById("downloadCvBtn").style.display = "";
+    document.getElementById("viewCvBtn").style.display = "";
   } catch (err) {
     console.error("Preview error:", err);
     previewStatus.innerHTML = `<span class="preview-status-err">Could not reach backend.</span>`;
@@ -1066,6 +1071,13 @@ function resetBuilder() {
   // Reset submit button label
   const buildBtn = document.getElementById("buildCvBtn");
   if (buildBtn) buildBtn.textContent = "Build CV & Preview";
+
+  // Hide preview action buttons
+  ["saveCvBtn","downloadCvBtn","viewCvBtn"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  });
+  _builderSavedJobId = null;
 
   // Remove any inline error banners
   document.querySelectorAll(".form-error-banner").forEach(el => el.remove());
@@ -1647,7 +1659,9 @@ async function loadProfileData() {
           const statusClass = j.status === "done" || j.status === "cv_generated" ? "done" : j.status?.startsWith("fail") ? "failed" : "processing";
           const statusLabel = j.status === "cv_generated" ? "Ready" : j.status === "done" ? "Matched" : j.status || "—";
 
+          const viewBtn    = j.has_pdf    ? `<button class="btn-ghost-sm" onclick="openPdfViewer('${j.job_id}')" title="View PDF">&#128065;</button>` : "";
           const dlPdfBtn   = j.has_pdf    ? `<button class="btn-ghost-sm" onclick="downloadCvPdf('${j.job_id}')">PDF</button>` : "";
+          const dlLatexBtn = !isUpload && j.has_latex ? `<button class="btn-ghost-sm" onclick="downloadCvLatex('${j.job_id}')">LaTeX</button>` : "";
           const dlUploadBtn = j.has_upload ? `<button class="btn-ghost-sm" onclick="downloadUploadedCv('${j.job_id}')">Original</button>` : "";
           const editBtn    = !isUpload    ? `<button class="btn-ghost-sm" onclick="editBuilderCv('${j.job_id}')">Edit</button>` : "";
 
@@ -1661,7 +1675,7 @@ async function loadProfileData() {
               <span>${date} · <span class="saved-cv-badge ${statusClass}" style="display:inline;padding:1px 6px;font-size:10px;">${statusLabel}</span></span>
             </div>
             <div class="cv-card-actions">
-              ${dlPdfBtn}${dlUploadBtn}${editBtn}
+              ${viewBtn}${dlPdfBtn}${dlLatexBtn}${dlUploadBtn}${editBtn}
               <button class="btn-ghost-sm" onclick="startRename('${j.job_id}', this)" title="Rename">✎</button>
               <button class="btn-danger-sm" onclick="deleteCv('${j.job_id}')">✕</button>
             </div>
@@ -2091,6 +2105,142 @@ document.getElementById("cv")?.addEventListener("change", function () {
     if (err) err.textContent = "";
   }
 });
+
+// ── PDF Viewer modal ──────────────────────────────────────────────────────────
+function openPdfViewerWithBlob(blobUrl, title) {
+  const modal = document.getElementById("pdfViewerModal");
+  const frame = document.getElementById("pdfViewerFrame");
+  const titleEl = document.getElementById("pdfViewerTitle");
+  if (titleEl) titleEl.textContent = title || "CV Preview";
+  frame.src = blobUrl;
+  modal.style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+
+window.openPdfViewer = async function(jobId) {
+  try {
+    const res = await apiFetch(`${BACKEND_URL}/view-cv/${jobId}`, { headers: authHeaders() });
+    if (!res.ok) throw new Error();
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    openPdfViewerWithBlob(url, "CV Preview");
+  } catch (_) {
+    alert("Could not load PDF. Please try again.");
+  }
+};
+
+document.getElementById("closePdfViewerBtn")?.addEventListener("click", () => {
+  const modal = document.getElementById("pdfViewerModal");
+  modal.style.display = "none";
+  document.body.style.overflow = "";
+  document.getElementById("pdfViewerFrame").src = "";
+});
+document.getElementById("pdfViewerModal")?.addEventListener("click", (e) => {
+  if (e.target === document.getElementById("pdfViewerModal")) {
+    document.getElementById("closePdfViewerBtn").click();
+  }
+});
+
+document.getElementById("viewCvBtn")?.addEventListener("click", () => {
+  if (_previewBlobUrl) openPdfViewerWithBlob(_previewBlobUrl, "CV Preview");
+});
+
+// ── Download dropdown (builder preview) ──────────────────────────────────────
+document.getElementById("downloadCvBtn")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const dd = document.getElementById("dlDropdown");
+  dd.style.display = dd.style.display === "none" ? "block" : "none";
+});
+document.addEventListener("click", () => {
+  const dd = document.getElementById("dlDropdown");
+  if (dd) dd.style.display = "none";
+});
+
+window.downloadBuilderFormat = async function(format) {
+  document.getElementById("dlDropdown").style.display = "none";
+  if (format === "pdf") {
+    if (_builderSavedJobId) {
+      await downloadCvPdf(_builderSavedJobId);
+    } else if (_previewBlobUrl) {
+      const a = document.createElement("a");
+      a.href = _previewBlobUrl;
+      a.download = "cv.pdf";
+      a.click();
+    }
+  } else if (format === "latex") {
+    if (_builderSavedJobId) {
+      await downloadCvLatex(_builderSavedJobId);
+    } else {
+      alert("Save the CV first to download the LaTeX source.");
+    }
+  }
+};
+
+// ── Save CV modal ─────────────────────────────────────────────────────────────
+document.getElementById("saveCvBtn")?.addEventListener("click", () => {
+  const modal = document.getElementById("saveCvModal");
+  const input = document.getElementById("saveCvNameInput");
+  document.getElementById("saveCvError").textContent = "";
+  const fullName = document.getElementById("fullName")?.value?.trim() || "";
+  input.value = fullName ? `${fullName} CV` : "";
+  modal.style.display = "flex";
+  setTimeout(() => input.focus(), 50);
+});
+
+document.getElementById("saveCvCancelBtn")?.addEventListener("click", () => {
+  document.getElementById("saveCvModal").style.display = "none";
+});
+document.getElementById("saveCvModal")?.addEventListener("click", (e) => {
+  if (e.target === document.getElementById("saveCvModal"))
+    document.getElementById("saveCvModal").style.display = "none";
+});
+
+document.getElementById("saveCvConfirmBtn")?.addEventListener("click", async () => {
+  const name = document.getElementById("saveCvNameInput").value.trim();
+  const errEl = document.getElementById("saveCvError");
+  if (!name) { errEl.textContent = "Please enter a name."; return; }
+  if (!validateBuilderForm()) {
+    document.getElementById("saveCvModal").style.display = "none";
+    return;
+  }
+  const btn = document.getElementById("saveCvConfirmBtn");
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+  try {
+    const res = await apiFetch(`${BACKEND_URL}/save-cv-only`, {
+      method:  "POST",
+      headers: authHeaders(),
+      body:    JSON.stringify({ candidate_profile: buildCandidateProfile(), display_name: name }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Save failed");
+    _builderSavedJobId = data.job_id;
+    document.getElementById("saveCvModal").style.display = "none";
+    previewStatus.innerHTML = `<span class="preview-status-ok">Saved as "${escapeHtml(name)}"</span>`;
+  } catch (err) {
+    errEl.textContent = err.message || "Failed to save. Please try again.";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Save";
+  }
+});
+
+// ── Download LaTeX from profile ───────────────────────────────────────────────
+window.downloadCvLatex = async function(jobId) {
+  try {
+    const res = await apiFetch(`${BACKEND_URL}/download-cv/${jobId}/latex`, { headers: authHeaders() });
+    if (!res.ok) throw new Error();
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `cv-${jobId}.tex`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (_) {
+    alert("LaTeX source not available for this CV.");
+  }
+};
 
 window.deleteAccount = async function() {
   const confirmed = confirm("Are you sure you want to delete your account?\n\nThis will permanently delete all your uploaded CVs and saved jobs. Your account ID will be retained but your data will be removed.");

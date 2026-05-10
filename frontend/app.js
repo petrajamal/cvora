@@ -141,6 +141,14 @@ authToggleBtn.addEventListener("click", () => {
   document.getElementById("confirmPasswordField").style.display = isLoginMode ? "none" : "block";
   document.getElementById("confirmPasswordError").textContent = "";
   document.getElementById("authConfirmPassword").value = "";
+  if (!isLoginMode) {
+    const p = authPassword.value;
+    checkRule("rule-length",  p.length >= 8);
+    checkRule("rule-upper",   /[A-Z]/.test(p));
+    checkRule("rule-lower",   /[a-z]/.test(p));
+    checkRule("rule-digit",   /\d/.test(p));
+    checkRule("rule-special", /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p));
+  }
 });
 
 // Live password strength checker (register mode only)
@@ -2020,6 +2028,25 @@ window.editBuilderCv = async function (jobId) {
     alert("Failed to load CV for editing. Please try again.");
   }
 };
+
+// ── File input: enable Analyze button + validate size before upload ──────────
+document.getElementById("cv")?.addEventListener("change", function () {
+  const file = this.files[0];
+  const btn  = document.getElementById("analyzeCvBtn");
+  const err  = document.getElementById("fileSizeError");
+  if (!file) {
+    if (btn) btn.disabled = true;
+    if (err) err.textContent = "";
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    if (btn) btn.disabled = true;
+    if (err) err.textContent = "File is too large (max 10 MB). Please choose a smaller PDF.";
+  } else {
+    if (btn) btn.disabled = false;
+    if (err) err.textContent = "";
+  }
+});
 
 window.deleteAccount = async function() {
   const confirmed = confirm("Are you sure you want to delete your account?\n\nThis will permanently delete all your uploaded CVs and saved jobs. Your account ID will be retained but your data will be removed.");

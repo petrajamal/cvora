@@ -30,6 +30,9 @@ def run_migrations():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token_hash VARCHAR",
         "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS last_heartbeat TIMESTAMP",
+        # Auto-verify users who existed before email verification was introduced
+        # (they have no verification_token_hash, so they were never sent a token)
+        "UPDATE users SET email_verified = TRUE WHERE email_verified = FALSE AND verification_token_hash IS NULL",
     ]
     with engine.connect() as conn:
         for sql in migrations:

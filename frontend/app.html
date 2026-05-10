@@ -871,15 +871,21 @@
       width: 100%;
     }
 
-    #previewFrame {
-      width: 100%;
+    #previewFrameWrap {
       flex: 1;
       min-height: 0;
+      overflow: hidden;
+      border-radius: var(--radius-sm);
+      position: relative;
+    }
+
+    #previewFrame {
       border: none;
       outline: none;
-      border-radius: var(--radius-sm);
-      display: block;
-      background: #fff;
+      position: absolute;
+      inset: -4px;
+      width: calc(100% + 8px);
+      height: calc(100% + 8px);
     }
 
     /* ════════════════════════════════════════════
@@ -1412,6 +1418,52 @@
     .msg-error { color: var(--danger); }
 
     /* ════════════════════════════════════════════
+       CHAR COUNTER
+    ════════════════════════════════════════════ */
+    .char-counter-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 3px;
+      margin-bottom: 6px;
+      min-height: 16px;
+    }
+    .char-counter-display {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .char-counter-display.warn { color: var(--warning); }
+    .char-counter-display.over { color: var(--danger); font-weight: 600; }
+
+    /* ════════════════════════════════════════════
+       TOAST NOTIFICATIONS
+    ════════════════════════════════════════════ */
+    .toast-notification {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 22px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.22);
+      z-index: 9999;
+      max-width: 420px;
+      text-align: center;
+      animation: toast-in 0.18s ease;
+      pointer-events: none;
+    }
+    .toast-error   { background: #991B1B; }
+    .toast-success { background: #065F46; }
+    .toast-info    { background: #1E3A5F; }
+    @keyframes toast-in {
+      from { opacity:0; transform: translateX(-50%) translateY(12px); }
+      to   { opacity:1; transform: translateX(-50%) translateY(0); }
+    }
+
+    /* ════════════════════════════════════════════
        HIDDEN
     ════════════════════════════════════════════ */
     .hidden { display: none !important; }
@@ -1763,7 +1815,8 @@
             <input id="location" type="text" placeholder="City, Country" maxlength="100" />
 
             <label>Professional Summary (optional)</label>
-            <textarea id="summary" placeholder="A short professional summary..." rows="4" maxlength="1000"></textarea>
+            <textarea id="summary" placeholder="A short professional summary..." rows="4" maxlength="300" data-charcounter></textarea>
+            <div class="char-counter-row"><span class="char-counter-display" data-for="summary"></span></div>
 
             <h3>Links</h3>
             <div class="subsection-header">
@@ -1941,7 +1994,7 @@
               <li><span class="step-num">3</span> Click "Find Jobs" to get matches</li>
             </ul>
           </div>
-          <iframe id="previewFrame" title="CV Preview" class="hidden"></iframe>
+          <div id="previewFrameWrap"><iframe id="previewFrame" title="CV Preview" class="hidden"></iframe></div>
         </div>
 
       </div><!-- /builderPreviewLayout -->
@@ -2012,7 +2065,9 @@
         <span style="color:#fff;font-size:14px;font-weight:600;" id="pdfViewerTitle">CV Preview</span>
         <button id="closePdfViewerBtn" style="background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:8px;padding:6px 14px;font-size:14px;font-weight:600;cursor:pointer;">&#215; Close</button>
       </div>
-      <iframe id="pdfViewerFrame" style="width:100%;aspect-ratio:210/297;border:none;border-radius:12px;display:block;background:#fff;"></iframe>
+      <div style="overflow:hidden;border-radius:12px;position:relative;aspect-ratio:210/297;">
+        <iframe id="pdfViewerFrame" style="position:absolute;inset:-4px;width:calc(100% + 8px);height:calc(100% + 8px);border:none;display:block;background:#fff;"></iframe>
+      </div>
     </div>
   </div>
 

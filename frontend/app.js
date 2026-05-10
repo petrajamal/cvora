@@ -358,6 +358,57 @@ function showFormError(message, anchorId) {
   div.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
+// ── Toast notification (replaces browser alert()) ────────────────────────────
+function showToast(message, type = "error", duration = 4000) {
+  const el = document.createElement("div");
+  el.className = `toast-notification toast-${type}`;
+  el.textContent = message;
+  document.body.appendChild(el);
+  setTimeout(() => {
+    el.style.transition = "opacity 0.3s";
+    el.style.opacity = "0";
+    setTimeout(() => el.remove(), 320);
+  }, duration);
+}
+
+// ── Character counter for limited textareas ───────────────────────────────────
+function attachCharCounter(textarea, max) {
+  const row = document.createElement("div");
+  row.className = "char-counter-row";
+  const span = document.createElement("span");
+  span.className = "char-counter-display";
+  row.appendChild(span);
+  textarea.parentNode.insertBefore(row, textarea.nextSibling);
+  function update() {
+    const len = textarea.value.length;
+    if (len > max) {
+      span.textContent = `${len - max} chars over limit`;
+      span.className = "char-counter-display over";
+    } else if (len > max - 40) {
+      span.textContent = `${max - len} remaining`;
+      span.className = "char-counter-display warn";
+    } else {
+      span.textContent = "";
+      span.className = "char-counter-display";
+    }
+  }
+  textarea.addEventListener("input", update);
+  update();
+}
+
+// ── URL length validator ──────────────────────────────────────────────────────
+function attachUrlLengthCheck(input, max = 200) {
+  const err = document.createElement("div");
+  err.style.cssText = "font-size:11px;color:var(--danger);margin-top:3px;display:none;font-weight:600;";
+  err.textContent = `URL must be at most ${max} characters`;
+  input.parentNode.insertBefore(err, input.nextSibling);
+  input.addEventListener("input", () => {
+    const over = input.value.length > max;
+    err.style.display = over ? "" : "none";
+    input.style.borderColor = over ? "var(--danger)" : "";
+  });
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -406,11 +457,12 @@ function addLinkEntry() {
       <option value="other">Other</option>
     </select>
     <input class="link-type-custom" placeholder="Specify type" maxlength="50" style="display:none;" />
-    <input class="link-url" type="url" placeholder="https://..." maxlength="300" />
+    <input class="link-url" type="url" placeholder="https://..." maxlength="500" />
     <input class="link-display" placeholder="Display text (max 100 chars)" maxlength="100" />
   `));
   const card = container.lastElementChild;
   attachRemoveHandlers("linksEntries");
+  attachUrlLengthCheck(card.querySelector(".link-url"), 200);
   // show custom input when "Other" selected
   const sel = card.querySelector(".link-type-select");
   const custom = card.querySelector(".link-type-custom");
@@ -486,11 +538,12 @@ function addEducationEntry() {
     </div>
 
     <label>Description (optional)</label>
-    <textarea class="education-description" rows="3" maxlength="1000"
+    <textarea class="education-description" rows="3" maxlength="300"
       placeholder="Notable coursework, achievements, thesis — one bullet per line"></textarea>
   `));
   const card = container.lastElementChild;
   attachRemoveHandlers("educationEntries");
+  attachCharCounter(card.querySelector(".education-description"), 300);
 
   // Degree "Other" toggle
   const degSel = card.querySelector(".education-degree-select");
@@ -540,11 +593,12 @@ function addExperienceEntry() {
     </div>
     <input class="experience-end" type="month" />
     <input class="experience-location" placeholder="Location (optional)" maxlength="100" />
-    <textarea class="experience-description" rows="4" maxlength="2000"
+    <textarea class="experience-description" rows="4" maxlength="300"
       placeholder="Responsibilities / achievements — one bullet per line *" required></textarea>
   `));
   const card = container.lastElementChild;
   attachRemoveHandlers("experienceEntries");
+  attachCharCounter(card.querySelector(".experience-description"), 300);
 
   // "Currently working here" disables end date
   const cwCb   = card.querySelector(".experience-currently-working");
@@ -565,21 +619,23 @@ function addProjectEntry() {
            placeholder="Technologies, comma-separated (optional)" maxlength="300" />
     <button type="button" class="add-url-btn">+ Add URL</button>
     <div class="url-row" style="display:none;">
-      <input class="project-link" type="url" placeholder="https://…" maxlength="300"
+      <input class="project-link" type="url" placeholder="https://…" maxlength="500"
              style="margin-bottom:12px;" />
     </div>
-    <textarea class="project-description" rows="4" maxlength="2000"
+    <textarea class="project-description" rows="4" maxlength="300"
       placeholder="Description bullets — one per line *" required></textarea>
   `));
   const card = container.lastElementChild;
   attachRemoveHandlers("projectEntries");
+  attachCharCounter(card.querySelector(".project-description"), 300);
 
-  // URL toggle button
+  // URL toggle button + length validator
   const addBtn = card.querySelector(".add-url-btn");
   const urlRow = card.querySelector(".url-row");
   addBtn.addEventListener("click", () => {
     urlRow.style.display = "";
     addBtn.style.display = "none";
+    attachUrlLengthCheck(card.querySelector(".project-link"), 200);
   });
 }
 
@@ -593,10 +649,12 @@ function addExtracurricularEntry() {
       <input class="extracurricular-organization" placeholder="Organization *" maxlength="200" required />
       <label>Date (optional)</label>
       <input class="extracurricular-date" type="month" />
-      <textarea class="extracurricular-description" rows="4" maxlength="1000" placeholder="Description (optional). Separate bullets with a new line."></textarea>
+      <textarea class="extracurricular-description" rows="4" maxlength="300" placeholder="Description (optional). Separate bullets with a new line."></textarea>
     `)
   );
+  const card = container.lastElementChild;
   attachRemoveHandlers("extracurricularEntries");
+  attachCharCounter(card.querySelector(".extracurricular-description"), 300);
 }
 
 function addCertificationEntry() {
@@ -1025,6 +1083,7 @@ async function updateCvPreview() {
     const _ph = document.getElementById("previewPlaceholder");
     if (_ph) _ph.style.display = "none";
     previewFrame.classList.remove("hidden");
+    document.getElementById("previewFrameWrap")?.classList.remove("hidden");
     previewStatus.innerHTML = `<span class="preview-status-ok">Preview updated</span>`;
     // Show save/download/view buttons
     document.getElementById("saveCvBtn").style.display = "";
@@ -1068,6 +1127,7 @@ function resetBuilder() {
   const _ph = document.getElementById("previewPlaceholder");
   if (_ph) _ph.style.display = "";
   if (previewFrame) { previewFrame.classList.add("hidden"); previewFrame.src = ""; }
+  document.getElementById("previewFrameWrap")?.classList.add("hidden");
   if (_previewBlobUrl) {
     URL.revokeObjectURL(_previewBlobUrl);
     _previewBlobUrl = null;
@@ -1487,6 +1547,9 @@ try {
   setupSkillInput("softSkillInput", "softSkillsContainer", softSkills);
   addEducationEntry();
   addLinkEntry();
+  // Attach counter to static summary field
+  const summaryTA = document.getElementById("summary");
+  if (summaryTA) attachCharCounter(summaryTA, 300);
 } catch (err) {
   console.error("Init error (non-fatal, builder sections may not be ready):", err);
 }
@@ -1795,7 +1858,7 @@ window.startRename = function (jobId, btn) {
       if (!res.ok) throw new Error();
       nameEl.textContent = newName;
     } catch (_) {
-      alert("Failed to rename. Please try again.");
+      showToast("Failed to rename. Please try again.");
     }
     input.remove();
     nameEl.style.display = "";
@@ -1830,7 +1893,7 @@ window.deleteCv = async function (jobId) {
       cvsList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>CV</div><strong>No CVs yet</strong><p>Build or upload a CV to get started.</p></div>";
     }
   } catch (_) {
-    alert("Failed to delete. Please try again.");
+    showToast("Failed to delete. Please try again.");
   }
 };
 
@@ -1846,7 +1909,7 @@ window.downloadCvPdf = async function (jobId) {
     a.click();
     URL.revokeObjectURL(url);
   } catch (_) {
-    alert("Failed to download PDF. Please try again.");
+    showToast("Failed to download PDF. Please try again.");
   }
 };
 
@@ -1865,7 +1928,7 @@ window.downloadUploadedCv = async function (jobId) {
     a.click();
     URL.revokeObjectURL(url);
   } catch (_) {
-    alert("Failed to download original CV. Please try again.");
+    showToast("Failed to download original CV. Please try again.");
   }
 };
 
@@ -1877,11 +1940,11 @@ window.editBuilderCv = async function (jobId) {
     const jobs = data.jobs || data;
     const job = jobs.find(j => j.job_id === jobId);
     if (!job) {
-      alert("CV not found.");
+      showToast("CV not found.");
       return;
     }
     if (!job.candidate_profile) {
-      alert("This CV has no saved form data to load (it may have been uploaded rather than built, or was created before editing was supported).");
+      showToast("This CV has no editable form data — it may be an upload or was created before editing was supported.", "info");
       return;
     }
 
@@ -2065,7 +2128,7 @@ window.editBuilderCv = async function (jobId) {
     document.getElementById("builderSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   } catch (err) {
-    alert("Failed to load CV for editing. Please try again.");
+    showToast("Failed to load CV for editing. Please try again.");
   }
 };
 
@@ -2148,7 +2211,7 @@ window.openPdfViewer = async function(jobId) {
     const url  = URL.createObjectURL(blob);
     openPdfViewerWithBlob(url, "CV Preview");
   } catch (_) {
-    alert("Could not load PDF. Please try again.");
+    showToast("Could not load PDF. Please try again.");
   }
 };
 
@@ -2194,7 +2257,7 @@ window.downloadBuilderFormat = async function(format) {
     if (_builderSavedJobId) {
       await downloadCvLatex(_builderSavedJobId);
     } else {
-      alert("Save the CV first to download the LaTeX source.");
+      showToast("Save the CV first to download the LaTeX source.", "info");
     }
   }
 };
@@ -2285,7 +2348,7 @@ window.downloadCvLatex = async function(jobId) {
     a.click();
     URL.revokeObjectURL(url);
   } catch (_) {
-    alert("LaTeX source not available for this CV.");
+    showToast("LaTeX source not available for this CV.");
   }
 };
 
@@ -2302,6 +2365,6 @@ window.deleteAccount = async function() {
     showAuthScreen();
     authError.textContent = "Your account has been deleted.";
   } catch (_) {
-    alert("Failed to delete account. Please try again.");
+    showToast("Failed to delete account. Please try again.");
   }
 };

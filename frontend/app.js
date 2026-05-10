@@ -1174,6 +1174,25 @@ async function pollResults(jobId) {
   const stopBtn = document.getElementById("stopAnalysisBtn");
   if (stopBtn) stopBtn.style.display = "";
 
+  // Send heartbeats every 5s so the worker knows the browser is still open
+  const heartbeatInterval = setInterval(() => {
+    apiFetch(`${BACKEND_URL}/job/${jobId}/heartbeat`, {
+      method: "POST", headers: authHeaders(),
+    }).catch(() => {});
+  }, 5000);
+
+  // Send the first heartbeat immediately
+  apiFetch(`${BACKEND_URL}/job/${jobId}/heartbeat`, {
+    method: "POST", headers: authHeaders(),
+  }).catch(() => {});
+
+  function stopAll() {
+    clearInterval(interval);
+    clearInterval(heartbeatInterval);
+    _activeInterval = null;
+    if (stopBtn) stopBtn.style.display = "none";
+  }
+
   const interval = setInterval(async () => {
     try {
       const res = await apiFetch(`${BACKEND_URL}/results/${jobId}`, {
@@ -1187,9 +1206,7 @@ async function pollResults(jobId) {
         return;
       }
 
-      clearInterval(interval);
-      _activeInterval = null;
-      if (stopBtn) stopBtn.style.display = "none";
+      stopAll();
 
       if (data.status === "failed" || data.status.startsWith("failed")) {
         setStatusFailed(data.status_message || "Processing failed. Please try again.");
@@ -1199,9 +1216,7 @@ async function pollResults(jobId) {
       setStatusDone(data.status_message || `Status: ${data.status.replaceAll("_", " ")}`);
       renderResults(data, jobId);
     } catch (err) {
-      clearInterval(interval);
-      _activeInterval = null;
-      if (stopBtn) stopBtn.style.display = "none";
+      stopAll();
       console.error("Polling error:", err);
       setStatusFailed("Error while fetching results. Please try again.");
     }

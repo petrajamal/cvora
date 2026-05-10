@@ -561,6 +561,19 @@ def cancel_job(job_id: str, user_id: str = Depends(get_current_user_id)):
         db.close()
 
 
+@app.post("/job/{job_id}/heartbeat")
+def job_heartbeat(job_id: str, user_id: str = Depends(get_current_user_id)):
+    db = SessionLocal()
+    try:
+        job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+        if job and job.status in ("pending", "processing", "pending_matching"):
+            job.last_heartbeat = datetime.utcnow()
+            db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
 @app.delete("/delete-account")
 def delete_account(user_id: str = Depends(get_current_user_id)):
     """Soft-delete the user account. Sets is_deleted=True and removes all job/liked data."""

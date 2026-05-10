@@ -37,6 +37,7 @@ class Job(Base):
     status_message     = Column(Text, nullable=True)
     display_name       = Column(String, nullable=True)
     cv_type            = Column(String, nullable=True)  # "upload" | "builder"
+    last_heartbeat     = Column(DateTime, nullable=True)
     created_at         = Column(DateTime, server_default=func.now(), nullable=True)
 
 

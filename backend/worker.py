@@ -1368,7 +1368,15 @@ while True:
 
             original_status = job.status   # capture BEFORE overwriting
             job.status = "processing"
+            job.last_heartbeat = datetime.utcnow()
             db.commit()
+
+            def heartbeat_alive(j):
+                """Return False if the client stopped sending heartbeats (browser closed)."""
+                if j.last_heartbeat is None:
+                    return True  # no heartbeat set yet — job just started, give it grace
+                age = (datetime.utcnow() - j.last_heartbeat).total_seconds()
+                return age < 45  # 45s timeout: frontend sends every 5s
 
             # ================================
             # HANDLE BOTH INPUT MODES
@@ -1392,6 +1400,13 @@ while True:
                         "modes": ["cv_location"] if candidate_loc else [],
                         "relocation_locations": [],
                     }
+
+                db.refresh(job)
+                if not heartbeat_alive(job):
+                    job.status = "failed"
+                    job.status_message = "Cancelled — browser was closed."
+                    db.commit()
+                    continue
 
                 job.status_message = "Searching for matching jobs..."
                 db.commit()
@@ -1460,16 +1475,23 @@ while True:
                         db.commit()
                         continue
 
+                    db.refresh(job)
+                    if not heartbeat_alive(job):
+                        job.status = "failed"
+                        job.status_message = "Cancelled — browser was closed."
+                        db.commit()
+                        continue
+
                     job.status_message = "Parsing CV with AI..."
                     db.commit()
 
                     ai_data = ai_extract_cv_data(text)
 
-                # Basic CV validity check
+                # Basic CV validity check — require BOTH identity info AND substance
                 has_name = bool(ai_data.get("full_name"))
                 has_contact = bool(ai_data.get("email") or ai_data.get("phone"))
                 has_experience = bool(ai_data.get("work_experience") or ai_data.get("education"))
-                if not (has_name or has_contact) and not has_experience:
+                if not has_experience or not (has_name or has_contact):
                     job.status = "failed"
                     job.status_message = "Please upload a valid CV or resume. The file you uploaded does not appear to contain recognizable CV content."
                     db.commit()
@@ -1619,6 +1641,13 @@ INPUT:
                 "modes": [],
                 "relocation_locations": []
             }
+
+            db.refresh(job)
+            if not heartbeat_alive(job):
+                job.status = "failed"
+                job.status_message = "Cancelled — browser was closed."
+                db.commit()
+                continue
 
             job.status_message = "Searching for matching jobs..."
             db.commit()

@@ -40,49 +40,39 @@ _ai_refine_cache: dict = {}
 # ADZUNA: known skills vocabulary
 # ─────────────────────────────────────────────
 KNOWN_TECH_SKILLS = {
-    # Languages
-    "python", "java", "javascript", "typescript", "c++", "c#", "ruby", "go",
-    "golang", "rust", "php", "scala", "kotlin", "swift", "r", "matlab",
-    "perl", "bash", "shell", "powershell", "vba",
-    # Databases
-    "sql", "mysql", "postgresql", "mongodb", "sqlite", "redis", "elasticsearch",
-    "cassandra", "dynamodb", "oracle", "firebase", "supabase", "mariadb",
-    # Web / Frameworks
+    # Technical
+    "python", "java", "javascript", "typescript", "c++", "c#", "ruby",
+    "go", "golang", "rust", "php", "scala", "kotlin", "swift",
+    "r", "matlab", "perl", "bash", "shell", "powershell", "vba",
+    "html", "css", "sass", "tailwind", "bootstrap", "api",
     "react", "vue", "angular", "next.js", "nuxt", "svelte",
     "node.js", "express", "django", "flask", "fastapi", "spring",
     "laravel", "rails", "asp.net", "graphql", "rest", "grpc", "soap",
-    # DevOps / Cloud
+    "sql", "mysql", "postgresql", "mongodb", "sqlite", "redis",
+    "elasticsearch", "cassandra", "dynamodb", "oracle", "firebase",
+    "supabase", "mariadb",
     "docker", "kubernetes", "aws", "azure", "gcp", "git", "linux",
-    "terraform", "ansible", "jenkins", "ci/cd", "github actions", "gitlab ci",
-    "nginx", "apache", "serverless",
-    # Data / ML / AI
+    "terraform", "ansible", "jenkins", "ci/cd", "github actions",
+    "gitlab ci", "nginx", "apache", "serverless",
     "tensorflow", "pytorch", "scikit-learn", "pandas", "numpy",
     "matplotlib", "keras", "hugging face", "spark", "hadoop",
-    "kafka", "airflow", "databricks", "dbt", "looker",
+    "kafka", "airflow", "databricks", "dbt",
     "tableau", "power bi", "excel", "google sheets",
     "machine learning", "deep learning", "nlp", "computer vision",
     "data science", "data engineering", "llm", "ai",
-    # Mobile
-    "flutter", "react native", "android", "ios", "swift", "kotlin",
-    # Testing
+    "flutter", "react native", "android", "ios",
     "selenium", "cypress", "jest", "pytest", "junit", "playwright",
-    # Design / Creative
     "figma", "photoshop", "illustrator", "indesign", "after effects",
-    "premiere", "sketch",
-    # Automation / No-code
+    "premiere", "sketch", "canva",
     "n8n", "zapier", "power automate", "make", "automation",
-    # Business / ERP
     "salesforce", "hubspot", "sap", "erp", "crm",
-    # Networking / Security
     "networking", "tcp/ip", "cybersecurity", "penetration testing",
     "firewalls", "vpn", "ccna",
-    # Engineering
     "autocad", "solidworks", "revit", "catia", "ansys",
-    # Misc tech
     "blockchain", "solidity", "web3", "unity", "unreal engine",
     "microservices", "agile", "scrum", "jira", "confluence",
-    "html", "css", "sass", "tailwind", "bootstrap", "api",
-    # Business / Operations / Process
+    "wordpress", "shopify", "woocommerce",
+    # Business
     "process improvement", "business analysis", "business analyst",
     "lean", "six sigma", "lean six sigma", "dmaic", "kaizen", "5s",
     "project management", "pmp", "prince2", "change management",
@@ -92,17 +82,68 @@ KNOWN_TECH_SKILLS = {
     "quality management", "iso", "iso 9001", "quality assurance",
     "risk management", "compliance", "audit", "governance",
     "business intelligence", "data analysis", "data visualization",
-    "excel", "microsoft office", "word", "powerpoint", "google sheets",
-    "visio", "lucidchart", "process mapping", "bpmn",
-    "erp", "sap", "oracle", "ms dynamics",
     "financial analysis", "budgeting", "forecasting", "accounting",
-    "marketing", "digital marketing", "seo", "sem", "google analytics",
-    "content management", "social media", "brand management",
-    "hr", "human resources", "recruitment", "talent management",
-    "payroll", "performance management",
-    "customer service", "crm", "client management",
+    "bookkeeping", "taxation", "accounts payable",
+    "accounts receivable", "financial modeling",
+    "marketing", "digital marketing", "seo", "sem",
+    "google analytics", "content management", "social media",
+    "brand management", "email marketing", "copywriting",
+    "sales", "b2b sales", "b2c sales", "lead generation",
+    "cold calling", "negotiation", "account management",
+    "customer success", "customer service", "client management",
+    "vendor management", "contract management",
+    "product management", "roadmapping", "product discovery",
+    "user stories", "a/b testing", "market research",
+    "strategy", "strategic planning",
+    # Soft skills
     "communication", "presentation", "leadership", "teamwork",
     "problem solving", "critical thinking", "time management",
+    "adaptability", "creativity", "decision making",
+    "multitasking", "organization", "attention to detail",
+    "emotional intelligence", "conflict resolution",
+    "public speaking", "mentoring", "coaching",
+    "analytical thinking", "collaboration",
+    "work ethic", "self management", "interpersonal skills",
+    "active listening", "resilience",
+    "accountability", "initiative", "innovation",
+    # Industries
+    "finance", "banking", "healthcare", "retail",
+    "ecommerce", "hospitality", "manufacturing",
+    "education", "insurance", "real estate",
+    "construction", "telecommunications",
+    "transportation", "energy", "oil and gas",
+    "government", "nonprofit", "pharmaceutical",
+    "media", "entertainment", "automotive",
+    "aviation", "food and beverage",
+    "saas", "fintech", "edtech", "healthtech", "proptech",
+    # HR
+    "human resources", "recruitment", "talent acquisition",
+    "talent management", "employee relations",
+    "performance management", "payroll",
+    "onboarding", "offboarding",
+    "workforce planning", "benefits administration",
+    "hris", "training and development",
+    "organizational development",
+    # Healthcare
+    "patient care", "ehr", "emr", "epic systems",
+    "medical coding", "hipaa", "clinical research",
+    "medical terminology", "healthcare administration",
+    "electronic medical records",
+    # Legal / Compliance
+    "gdpr", "soc2", "iso 27001",
+    "legal research", "regulatory compliance",
+    "policy development", "contract review",
+    "risk assessment", "aml", "kyc",
+    # Design / UX
+    "user research", "wireframing",
+    "prototyping", "design systems",
+    "usability testing", "interaction design",
+    "responsive design", "information architecture",
+    "visual design", "accessibility",
+    # Engineering
+    "plc", "scada", "lean manufacturing",
+    "quality control", "mechanical design",
+    "electrical systems", "cad", "cam", "fea", "hvac",
 }
 
 # Locations that aren't natively supported by Adzuna.

@@ -804,7 +804,7 @@
        CV PREVIEW PANEL
     ════════════════════════════════════════════ */
     #previewCard {
-      width: 560px;
+      width: 420px;
       flex-shrink: 0;
       position: sticky;
       top: calc(var(--nav-height) + 16px);
@@ -875,10 +875,11 @@
       width: 100%;
       flex: 1;
       min-height: 0;
-      border: 1px solid var(--border);
+      border: none;
+      outline: none;
       border-radius: var(--radius-sm);
       display: block;
-      background: var(--bg);
+      background: #fff;
     }
 
     /* ════════════════════════════════════════════
@@ -1420,7 +1421,7 @@
     ════════════════════════════════════════════ */
     @media (max-width: 900px) {
       #builderPreviewLayout { flex-direction: column; }
-      #previewCard { width: 100%; position: static; height: 80vw; max-height: 600px; overflow: hidden; }
+      #previewCard { width: 100%; position: static; height: 65vw; max-height: 560px; overflow: hidden; }
     }
 
     @media (max-width: 600px) {

@@ -895,14 +895,17 @@ def download_cv(
 
 @app.post("/save-cv-only")
 async def save_cv_only(payload: dict, user_id: str = Depends(get_current_user_id)):
-    """Save a built CV to the user's profile without running job matching."""
+    """Save or update a built CV. Pass job_id to update an existing entry."""
     candidate_profile = payload.get("candidate_profile")
     display_name = sanitize(payload.get("display_name") or "My CV", 120)
+    job_id_to_update = payload.get("job_id")
     if not candidate_profile:
         raise HTTPException(status_code=400, detail="Missing candidate_profile")
 
+    enhanced_profile = await auto_enhance_cv_descriptions(candidate_profile)
+
     try:
-        latex_source = generate_latex_cv(candidate_profile)
+        latex_source = generate_latex_cv(enhanced_profile)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"LaTeX generation failed: {exc}")
 
@@ -912,30 +915,42 @@ async def save_cv_only(payload: dict, user_id: str = Depends(get_current_user_id
         raise HTTPException(status_code=500, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"CV generation failed: {exc}")
-    pdf_path = None
-
-    job_id = str(uuid.uuid4())
-    if pdf_bytes:
-        pdf_path = f"generated/{job_id}.pdf"
-        r2.upload_bytes(pdf_path, pdf_bytes, content_type="application/pdf")
 
     db = SessionLocal()
     try:
-        job = Job(
-            id=job_id,
-            user_id=user_id,
-            filename=display_name,
-            display_name=display_name,
-            cv_type="built",
-            status="cv_generated",
-            status_message="CV saved.",
-            generated_latex=latex_source,
-            generated_pdf_path=pdf_path,
-            candidate_profile=json.dumps(candidate_profile),
-        )
-        db.add(job)
-        db.commit()
-        return {"job_id": job_id, "has_pdf": bool(pdf_bytes)}
+        if job_id_to_update:
+            job = db.query(Job).filter(Job.id == job_id_to_update, Job.user_id == user_id).first()
+            if not job:
+                raise HTTPException(status_code=404, detail="CV not found")
+            if pdf_bytes:
+                pdf_path = f"generated/{job_id_to_update}.pdf"
+                r2.upload_bytes(pdf_path, pdf_bytes, content_type="application/pdf")
+                job.generated_pdf_path = pdf_path
+            job.generated_latex = latex_source
+            job.candidate_profile = json.dumps(candidate_profile)
+            db.commit()
+            return {"job_id": job_id_to_update, "has_pdf": bool(pdf_bytes)}
+        else:
+            job_id = str(uuid.uuid4())
+            pdf_path = None
+            if pdf_bytes:
+                pdf_path = f"generated/{job_id}.pdf"
+                r2.upload_bytes(pdf_path, pdf_bytes, content_type="application/pdf")
+            job = Job(
+                id=job_id,
+                user_id=user_id,
+                filename=display_name,
+                display_name=display_name,
+                cv_type="built",
+                status="cv_generated",
+                status_message="CV saved.",
+                generated_latex=latex_source,
+                generated_pdf_path=pdf_path,
+                candidate_profile=json.dumps(candidate_profile),
+            )
+            db.add(job)
+            db.commit()
+            return {"job_id": job_id, "has_pdf": bool(pdf_bytes)}
     finally:
         db.close()
 
@@ -978,6 +993,83 @@ def view_cv(job_id: str, user_id: str = Depends(get_current_user_id)):
         )
     finally:
         db.close()
+
+
+async def auto_enhance_cv_descriptions(profile: dict) -> dict:
+    """Batch-enhance all CV description fields before PDF generation."""
+    import copy
+    from openai import AsyncOpenAI
+
+    if not os.getenv("OPENAI_API_KEY"):
+        return profile
+
+    p = copy.deepcopy(profile)
+    items = []  # [(original_text, context_str, setter_fn)]
+
+    def _collect(desc_list, ctx):
+        if not isinstance(desc_list, list):
+            return
+        for i in range(len(desc_list)):
+            b = desc_list[i]
+            if isinstance(b, str) and b.strip():
+                items.append((b, ctx, lambda v, d=desc_list, j=i: d.__setitem__(j, v)))
+
+    summary = (p.get("summary") or "").strip()
+    if summary:
+        name = p.get("full_name", "applicant")
+        items.append((summary, f"Professional summary for {name}",
+                       lambda v: p.update({"summary": v})))
+
+    for exp in (p.get("work_experience") or []):
+        _collect(exp.get("description") or [],
+                 f"{exp.get('position','role')} at {exp.get('organization','company')}")
+
+    for edu in (p.get("education") or []):
+        _collect(edu.get("description") or [],
+                 f"{edu.get('degree','study')} at {edu.get('institution','school')}")
+
+    for proj in (p.get("projects") or []):
+        _collect(proj.get("description") or [],
+                 f"Project: {proj.get('title','project')}")
+
+    for ex in (p.get("extracurriculars") or []):
+        _collect(ex.get("description") or [],
+                 f"{ex.get('role','')} at {ex.get('organization','')}")
+
+    if not items:
+        return p
+
+    entries = "\n\n".join(
+        f"{i+1}. [Context: {ctx}]\n{text}"
+        for i, (text, ctx, _) in enumerate(items)
+    )
+    prompt = (
+        "You are polishing a CV document. For each numbered description, return a cleaned version.\n"
+        "Rules (apply in order):\n"
+        "1. Fix grammar and spelling always.\n"
+        "2. Use strong action verbs.\n"
+        "3. If fewer than 10 words: expand slightly using the context — do NOT invent unrelated facts.\n"
+        "4. If more than 60 words: condense to approximately 60 words, keeping all key information.\n"
+        "5. If already 10–60 words with good grammar: minimal changes only.\n"
+        "6. Never change meaning or add facts not stated or strongly implied by the user.\n"
+        "Return ONLY the numbered items in the same order, one per line. Format exactly:\n"
+        "1. improved text\n2. improved text\n\n"
+        + entries
+    )
+
+    try:
+        client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        resp = await client.responses.create(model="gpt-4o-mini", input=prompt)
+        for line in re.split(r"\n(?=\d+\.)", resp.output_text.strip()):
+            m = re.match(r"^(\d+)\.\s+(.*)", line.strip(), re.DOTALL)
+            if m:
+                idx = int(m.group(1)) - 1
+                if 0 <= idx < len(items):
+                    items[idx][2](m.group(2).strip())
+    except Exception:
+        return profile  # fall back to original on any failure
+
+    return p
 
 
 @app.post("/enhance-description")
@@ -1045,8 +1137,10 @@ async def preview_cv(
     if not candidate_profile:
         raise HTTPException(status_code=400, detail="Missing candidate_profile")
 
+    enhanced_profile = await auto_enhance_cv_descriptions(candidate_profile)
+
     try:
-        latex_source = generate_latex_cv(candidate_profile)
+        latex_source = generate_latex_cv(enhanced_profile)
         pdf_bytes = compile_to_pdf(latex_source)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc))

@@ -540,12 +540,8 @@ function addExperienceEntry() {
     </div>
     <input class="experience-end" type="month" />
     <input class="experience-location" placeholder="Location (optional)" maxlength="100" />
-    <div style="position:relative;">
-      <textarea class="experience-description" rows="4" maxlength="2000"
-        placeholder="Responsibilities / achievements — one bullet per line *" required></textarea>
-      <button type="button" class="enhance-desc-btn" title="AI-enhance: fixes grammar and tightens phrasing"
-        style="position:absolute;bottom:8px;right:8px;padding:3px 8px;font-size:11px;font-weight:600;border:1px solid var(--primary-border);border-radius:4px;background:var(--primary-light);color:var(--primary);cursor:pointer;">Enhance</button>
-    </div>
+    <textarea class="experience-description" rows="4" maxlength="2000"
+      placeholder="Responsibilities / achievements — one bullet per line *" required></textarea>
   `));
   const card = container.lastElementChild;
   attachRemoveHandlers("experienceEntries");
@@ -558,31 +554,6 @@ function addExperienceEntry() {
     if (cwCb.checked) endInp.value = "";
   });
 
-  // AI enhance description button
-  const enhanceBtn  = card.querySelector(".enhance-desc-btn");
-  const descTextarea = card.querySelector(".experience-description");
-  enhanceBtn.addEventListener("click", async () => {
-    const text = descTextarea.value.trim();
-    if (!text) return;
-    enhanceBtn.disabled = true;
-    enhanceBtn.textContent = "…";
-    try {
-      const res = await apiFetch(`${BACKEND_URL}/enhance-description`, {
-        method:  "POST",
-        headers: authHeaders(),
-        body:    JSON.stringify({ text }),
-      });
-      if (!res.ok) throw new Error();
-      const { enhanced } = await res.json();
-      descTextarea.value = enhanced;
-    } catch (_) {
-      enhanceBtn.textContent = "Failed";
-      setTimeout(() => { enhanceBtn.textContent = "Enhance"; }, 2000);
-    } finally {
-      enhanceBtn.disabled = false;
-      if (enhanceBtn.textContent === "…") enhanceBtn.textContent = "Enhance";
-    }
-  });
 }
 
 function addProjectEntry() {
@@ -1049,7 +1020,7 @@ async function updateCvPreview() {
     const blob = await res.blob();
     if (_previewBlobUrl) URL.revokeObjectURL(_previewBlobUrl);
     _previewBlobUrl = URL.createObjectURL(blob);
-    previewFrame.src = _previewBlobUrl + "#toolbar=0&navpanes=0";
+    previewFrame.src = _previewBlobUrl + "#toolbar=0&navpanes=0&scrollbar=0&view=FitH";
     // Show frame, hide placeholder
     const _ph = document.getElementById("previewPlaceholder");
     if (_ph) _ph.style.display = "none";
@@ -1923,8 +1894,9 @@ window.editBuilderCv = async function (jobId) {
     document.getElementById("mainView")?.removeAttribute("style");
     window.showBuilder();
 
-    // Reset first so we start clean
+    // Reset first so we start clean, then restore job id so Save updates not creates
     resetBuilder();
+    _builderSavedJobId = jobId;
 
     // Personal info
     const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ""; };
@@ -2163,7 +2135,7 @@ function openPdfViewerWithBlob(blobUrl, title) {
   const frame = document.getElementById("pdfViewerFrame");
   const titleEl = document.getElementById("pdfViewerTitle");
   if (titleEl) titleEl.textContent = title || "CV Preview";
-  frame.src = blobUrl + "#toolbar=0&navpanes=0";
+  frame.src = blobUrl + "#toolbar=0&navpanes=0&scrollbar=0&view=FitH";
   modal.style.display = "flex";
   document.body.style.overflow = "hidden";
 }
@@ -2228,7 +2200,31 @@ window.downloadBuilderFormat = async function(format) {
 };
 
 // ── Save CV modal ─────────────────────────────────────────────────────────────
-document.getElementById("saveCvBtn")?.addEventListener("click", () => {
+document.getElementById("saveCvBtn")?.addEventListener("click", async () => {
+  if (_builderSavedJobId) {
+    // Already have a saved/loaded CV — update it in place
+    if (!validateBuilderForm()) return;
+    const btn = document.getElementById("saveCvBtn");
+    btn.disabled = true;
+    btn.textContent = "Saving…";
+    try {
+      const res = await apiFetch(`${BACKEND_URL}/save-cv-only`, {
+        method:  "POST",
+        headers: authHeaders(),
+        body:    JSON.stringify({ candidate_profile: buildCandidateProfile(), job_id: _builderSavedJobId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Update failed");
+      previewStatus.innerHTML = `<span class="preview-status-ok">CV updated</span>`;
+    } catch (err) {
+      previewStatus.innerHTML = `<span class="preview-status-err">${escapeHtml(err.message || "Update failed")}</span>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "✓ Save CV";
+    }
+    return;
+  }
+  // New CV — show name modal
   const modal = document.getElementById("saveCvModal");
   const input = document.getElementById("saveCvNameInput");
   document.getElementById("saveCvError").textContent = "";

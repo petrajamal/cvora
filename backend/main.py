@@ -315,7 +315,7 @@ def forgot_password(payload: dict, request: Request):
     without an SMTP server.  Remove that field before going to production
     and wire up a real email sender instead.
     """
-    rate_limit(f"forgot:{request.client.host}", max_calls=5, window=300)
+    rate_limit(f"forgot:{request.client.host}", max_calls=3, window=900)
 
     email = sanitize(payload.get("email") or "", 120).lower()
     generic = {"message": "If that email is registered you will receive a reset link shortly."}
@@ -480,6 +480,54 @@ def delete_job(job_id: str, user_id: str = Depends(get_current_user_id)):
             if key:
                 r2.delete(key)
         db.delete(job)
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+@app.post("/job/{job_id}/cancel")
+def cancel_job(job_id: str, user_id: str = Depends(get_current_user_id)):
+    db = SessionLocal()
+    try:
+        job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        if job.status not in ("pending", "processing", "pending_matching"):
+            raise HTTPException(status_code=400, detail="Job is not in a cancellable state")
+        job.status = "failed"
+        job.status_message = "Cancelled by user."
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+@app.delete("/delete-account")
+def delete_account(user_id: str = Depends(get_current_user_id)):
+    """Soft-delete the user account. Sets is_deleted=True and removes all job/liked data."""
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Delete liked jobs
+        db.query(LikedJob).filter(LikedJob.user_id == user_id).delete()
+
+        # Delete all jobs (and their R2 files best-effort)
+        jobs = db.query(Job).filter(Job.user_id == user_id).all()
+        for j in jobs:
+            if j.file_path:
+                try: r2.delete(j.file_path)
+                except Exception: pass
+            if j.generated_pdf_path:
+                try: r2.delete(j.generated_pdf_path)
+                except Exception: pass
+            db.delete(j)
+
+        # Soft-delete the user
+        user.is_deleted = True
         db.commit()
         return {"ok": True}
     finally:

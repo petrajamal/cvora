@@ -11,6 +11,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     full_name       = Column(String, nullable=True)
     created_at      = Column(DateTime, server_default=func.now(), nullable=True)
+    is_deleted      = Column(Boolean, default=False, nullable=True)
 
 
 class Job(Base):

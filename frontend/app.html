@@ -201,6 +201,11 @@
       border: 1px solid var(--border);
     }
 
+    .rule-pass { color: #059669; }
+    .rule-fail { color: #94A3B8; }
+    .rule-pass::before { content: "✓  "; }
+    .rule-fail::before { content: "✗  "; }
+
     .auth-footer {
       margin-top: 18px;
       font-size: 13px;
@@ -558,16 +563,6 @@
       background: var(--surface);
       box-shadow: var(--shadow-xs);
       position: relative;
-    }
-
-    .entry-card::before {
-      content: '';
-      position: absolute;
-      left: 0; top: 14px; bottom: 14px;
-      width: 3px;
-      background: var(--primary);
-      border-radius: 0 2px 2px 0;
-      opacity: 0.6;
     }
 
     .entry-card h4 {
@@ -1009,14 +1004,6 @@
       flex-shrink: 0;
     }
 
-    #statusCard {
-      border-left: 4px solid var(--primary);
-      transition: border-left-color 0.3s;
-    }
-    #statusCard.status-processing { border-left-color: var(--primary); }
-    #statusCard.status-done       { border-left-color: var(--success); }
-    #statusCard.status-failed     { border-left-color: var(--danger); }
-
     /* ════════════════════════════════════════════
        PREVIEW STATUS BADGES
     ════════════════════════════════════════════ */
@@ -1113,7 +1100,6 @@
       top: -1px; right: -1px;
       width: 20px; height: 20px;
       background: var(--surface);
-      border-left: 2px dashed var(--border-strong);
       border-bottom: 2px dashed var(--border-strong);
       border-radius: 0 0 0 var(--radius-xs);
     }
@@ -1577,12 +1563,13 @@
             <p id="profileEmail">—</p>
           </div>
           <button class="profile-back-btn" onclick="showMainView()">&#8592; Back</button>
+          <button id="deleteAccountBtn" onclick="deleteAccount()" style="background:none;border:1.5px solid var(--danger);color:var(--danger);font-size:12px;font-weight:600;padding:6px 14px;border-radius:6px;cursor:pointer;margin-left:auto;">Delete Account</button>
         </div>
 
         <div class="profile-tabs">
           <button class="tab-btn active" onclick="switchTab('cvs', this)">My CVs</button>
           <button class="tab-btn" onclick="switchTab('matches', this)">Job Matches</button>
-          <button class="tab-btn" onclick="switchTab('liked', this)">&#9829; Saved Jobs</button>
+          <button class="tab-btn" onclick="switchTab('liked', this)">Saved Jobs</button>
         </div>
 
         <div id="tabCvs" class="tab-panel active">
@@ -1609,16 +1596,16 @@
         </div>
         <div class="hero-stats">
           <div class="hero-stat">
-            <div class="hero-stat-value">✦</div>
-            <div class="hero-stat-label">AI Scoring</div>
+            <div class="hero-stat-value">AI</div>
+            <div class="hero-stat-label">Scoring</div>
           </div>
           <div class="hero-stat">
-            <div class="hero-stat-value">↗</div>
-            <div class="hero-stat-label">Live Jobs</div>
+            <div class="hero-stat-value">Live</div>
+            <div class="hero-stat-label">Jobs</div>
           </div>
           <div class="hero-stat">
-            <div class="hero-stat-value">⬇</div>
-            <div class="hero-stat-label">PDF Export</div>
+            <div class="hero-stat-value">PDF</div>
+            <div class="hero-stat-label">Export</div>
           </div>
         </div>
       </div>
@@ -1646,6 +1633,7 @@
             <label><input type="checkbox" value="willing_to_relocate" /> Willing to Relocate</label>
           </div>
 
+          <div id="relocationCountriesGroup" style="display:none;">
           <label for="relocationCountries">Relocation Countries <span style="text-transform:none;font-weight:400;letter-spacing:0;color:var(--text-muted)">(hold Cmd/Ctrl for multiple)</span></label>
           <select id="relocationCountries" multiple size="6">
             <optgroup label="Middle East &amp; North Africa">
@@ -1704,6 +1692,7 @@
               <option value="TR">Turkey</option>
             </optgroup>
           </select>
+          </div>
 
           <button type="submit" style="margin-top:18px;">Analyze CV</button>
         </form>
@@ -1923,7 +1912,10 @@
       </div><!-- /builderPreviewLayout -->
 
       <div id="statusCard" class="card hidden">
-        <h2>Status</h2>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <h2 style="margin:0;">Status</h2>
+          <button id="stopAnalysisBtn" class="btn-danger-sm" style="display:none;" onclick="stopAnalysis()">Stop</button>
+        </div>
         <p id="statusText">Waiting...</p>
       </div>
 

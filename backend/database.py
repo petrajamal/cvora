@@ -26,6 +26,7 @@ def run_migrations():
     migrations = [
         "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS display_name VARCHAR",
         "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS cv_type VARCHAR",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE",
     ]
     with engine.connect() as conn:
         for sql in migrations:

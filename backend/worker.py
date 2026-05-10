@@ -32,44 +32,9 @@ ADZUNA_APP_ID  = os.getenv("ADZUNA_APP_ID", "")
 ADZUNA_APP_KEY = os.getenv("ADZUNA_APP_KEY", "")
 JSEARCH_API_KEY = os.getenv("JSEARCH_API_KEY", "")
 
-sample_jobs = [
-    {
-        "title": "Backend Developer Intern",
-        "company": "TechCo",
-        "location": "Beirut",
-        "location_type": "onsite",
-        "description": "Looking for Python, FastAPI, SQL, Git, Docker",
-        "required_skills": ["python", "fastapi", "sql", "git", "docker"],
-        "required_years_experience": 0,
-        "target_candidates": ["student", "fresh_grad", "intern"],
-        "role_keywords": ["backend", "developer", "api", "fastapi", "web"],
-        "url": "https://example.com/job1"
-    },
-    {
-        "title": "Data Analyst Intern",
-        "company": "DataWorks",
-        "location": "Remote",
-        "location_type": "remote",
-        "description": "Looking for SQL, Tableau, Python, Pandas, Excel",
-        "required_skills": ["sql", "tableau", "python", "pandas", "excel"],
-        "required_years_experience": 0,
-        "target_candidates": ["student", "fresh_grad", "intern"],
-        "role_keywords": ["analytics", "dashboard", "reporting", "tableau", "excel"],
-        "url": "https://example.com/job2"
-    },
-    {
-        "title": "Automation Engineer",
-        "company": "FlowOps",
-        "location": "Dubai",
-        "location_type": "onsite",
-        "description": "Looking for APIs, automation, Python, workflow tools, SQL, n8n",
-        "required_skills": ["apis", "automation", "python", "sql", "n8n"],
-        "required_years_experience": 1,
-        "target_candidates": ["junior", "fresh_grad"],
-        "role_keywords": ["automation", "workflow", "n8n", "process improvement", "apis", "scripting"],
-        "url": "https://example.com/job3"
-    }
-]
+import hashlib as _hashlib
+_ai_extract_cache: dict = {}
+_ai_refine_cache: dict = {}
 
 # ─────────────────────────────────────────────
 # ADZUNA: known skills vocabulary
@@ -339,11 +304,11 @@ def map_adzuna_job(raw):
 def fetch_jobs_from_adzuna(ai_data, preferences):
     """
     Query Adzuna for live job listings based on the candidate profile.
-    Falls back to sample_jobs if credentials are missing or the request fails.
+    Returns empty list if credentials are missing or the request fails.
     """
     if not ADZUNA_APP_ID or not ADZUNA_APP_KEY:
-        print("⚠️  Adzuna credentials not set — using sample jobs")
-        return sample_jobs
+        print("[JOBS] Adzuna credentials not set — returning empty list")
+        return []
 
     what = build_search_query(ai_data)
 
@@ -384,18 +349,18 @@ def fetch_jobs_from_adzuna(ai_data, preferences):
         params["where"] = where
 
     url = f"https://api.adzuna.com/v1/api/jobs/{country}/search/1"
-    print(f"\n🌐 Adzuna query → country={country}  what='{what}'  where='{where}'")
+    print(f"\n[JOBS] Adzuna query country={country}  what='{what}'  where='{where}'")
 
     try:
         resp = requests.get(url, params=params, timeout=12)
         resp.raise_for_status()
         raw_jobs = resp.json().get("results", [])
-        print(f"✅ Adzuna returned {len(raw_jobs)} jobs")
+        print(f"[JOBS] Adzuna returned {len(raw_jobs)} jobs")
         mapped = [map_adzuna_job(j) for j in raw_jobs]
-        return mapped if mapped else sample_jobs
+        return mapped if mapped else []
     except Exception as exc:
-        print(f"⚠️  Adzuna request failed: {exc} — falling back to sample jobs")
-        return sample_jobs
+        print(f"[JOBS] Adzuna request failed: {exc} — returning empty list")
+        return []
 
 
 # ── Adzuna response cache (in-memory, 1-hour TTL) ────────────────────────────
@@ -413,7 +378,7 @@ def fetch_jobs_cached(ai_data: dict, preferences: dict) -> list:
     if cache_key in _adzuna_cache:
         result, ts = _adzuna_cache[cache_key]
         if now - ts < _CACHE_TTL:
-            print(f"✅ Adzuna cache hit ({int(now - ts)}s old)")
+            print(f"[JOBS] Adzuna cache hit ({int(now - ts)}s old)")
             return result
     result = fetch_jobs_from_adzuna(ai_data, preferences)
     _adzuna_cache[cache_key] = (result, now)
@@ -681,7 +646,7 @@ def _jsearch_request(query, country_code, remote_only=False):
     if remote_only:
         params["remote_jobs_only"] = "true"
 
-    print(f"\n🌐 jsearch → query='{query}'  country={country_code or 'any'}  remote={remote_only}")
+    print(f"\n[JOBS] jsearch query='{query}'  country={country_code or 'any'}  remote={remote_only}")
     resp = requests.get(
         "https://jsearch.p.rapidapi.com/search",
         headers=headers,
@@ -701,10 +666,10 @@ def fetch_jobs_from_jsearch(ai_data, preferences):
       1. Specific query + country code           (e.g. "Process Improvement Analyst", LB)
       2. Broader query + same country            (e.g. "Analyst", LB)
       3. Specific query, no country filter       (global)
-      4. Falls back to Adzuna, then sample_jobs
+      4. Falls back to Adzuna, then empty list
     """
     if not JSEARCH_API_KEY:
-        print("⚠️  JSEARCH_API_KEY not set — trying Adzuna")
+        print("[JOBS] JSEARCH_API_KEY not set — trying Adzuna")
         return fetch_jobs_cached(ai_data, preferences)
 
     modes      = set(preferences.get("modes", []))
@@ -725,17 +690,17 @@ def fetch_jobs_from_jsearch(ai_data, preferences):
     for attempt_query, attempt_country, attempt_remote in attempts:
         try:
             raw_jobs = _jsearch_request(attempt_query, attempt_country, attempt_remote)
-            print(f"✅ jsearch returned {len(raw_jobs)} jobs")
+            print(f"[JOBS] jsearch returned {len(raw_jobs)} jobs")
             if raw_jobs:
                 mapped = [map_jsearch_job(j) for j in raw_jobs if j.get("job_title")]
                 if mapped:
                     return mapped
-            print("   → 0 results, trying broader search...")
+            print("   [JOBS] 0 results, trying broader search...")
         except Exception as exc:
-            print(f"⚠️  jsearch attempt failed: {exc}")
+            print(f"[JOBS] jsearch attempt failed: {exc}")
             break   # network/auth error — no point retrying
 
-    print("⚠️  All jsearch attempts returned 0 — falling back to Adzuna")
+    print("[JOBS] All jsearch attempts returned 0 — falling back to Adzuna")
     return fetch_jobs_from_adzuna(ai_data, preferences)
 
 
@@ -782,6 +747,10 @@ def extract_basic_info(text):
 
 
 def ai_extract_cv_data(text):
+    cache_key = _hashlib.md5(text[:12000].encode()).hexdigest()
+    if cache_key in _ai_extract_cache:
+        return _ai_extract_cache[cache_key]
+
     trimmed_text = text[:12000]
 
     prompt = f"""
@@ -870,7 +839,9 @@ def ai_extract_cv_data(text):
 
     raw_output = response.output_text.strip()
 
-    return json.loads(raw_output)
+    result = json.loads(raw_output)
+    _ai_extract_cache[cache_key] = result
+    return result
 
 def compute_location_score(candidate_location, preferences, job):
     candidate_location = normalize_text(candidate_location)
@@ -878,44 +849,57 @@ def compute_location_score(candidate_location, preferences, job):
     job_location_type = normalize_text(job.get("location_type"))
 
     modes = set(preferences.get("modes", []))
-    relocation_locations = {
-        normalize_text(loc) for loc in preferences.get("relocation_locations", [])
-    }
+
+    # If no location preference at all, neutral
+    if not modes:
+        return 70, "no_preference_neutral"
 
     candidate_parts = {part.strip() for part in candidate_location.split(",") if part.strip()}
     job_parts = {part.strip() for part in job_location.split(",") if part.strip()}
 
-    # 1) Highest priority: CV location
-    if "cv_location" in modes and candidate_location:
-        # exact string
+    # remote mode: job must be remote
+    if "remote" in modes and len(modes) == 1:
+        if job_location_type == "remote" or job_location == "remote":
+            return 100, "remote_match"
+        return 0, "remote_not_matched"
+
+    # cv_location mode only
+    if "cv_location" in modes and len(modes) == 1:
         if candidate_location == job_location:
             return 100, "exact_cv_location_match"
-
-        # city/country component overlap, e.g. "Beirut" vs "Beirut, Lebanon"
         if candidate_parts & job_parts:
             return 100, "cv_location_component_match"
-
-        # broader containment fallback
         if candidate_location in job_location or job_location in candidate_location:
-            return 95, "partial_cv_location_match"
+            return 100, "partial_cv_location_match"
+        return 0, "cv_location_not_matched"
 
-    # 2) Second priority: remote
-    if "remote" in modes:
-        if job_location_type == "remote" or job_location == "remote":
-            return 85, "remote_match"
+    # willing_to_relocate only
+    relocation_locations = {
+        normalize_text(loc) for loc in preferences.get("relocation_locations", [])
+    }
+    if "willing_to_relocate" in modes and len(modes) == 1:
+        if relocation_locations:
+            for code in relocation_locations:
+                keywords = COUNTRY_CODE_LOCATION_KEYWORDS.get(code.upper(), [code.lower()])
+                for kw in keywords:
+                    if kw in job_location or kw in job_location_type:
+                        return 100, "relocation_location_match"
+        return 0, "relocation_not_matched"
 
-        # if remote is selected, also allow candidate's own location but with lower score than explicit cv_location mode
-        if candidate_parts & job_parts or candidate_location == job_location:
-            return 80, "cv_location_allowed_under_remote"
-
-    # 3) Third priority: relocation
-    # relocation_locations are now ISO country codes e.g. ["GB", "AE"]
+    # Multiple modes — any match is 100
+    if "remote" in modes and (job_location_type == "remote" or job_location == "remote"):
+        return 100, "remote_match"
+    if "cv_location" in modes and candidate_location:
+        if candidate_location == job_location or candidate_parts & job_parts:
+            return 100, "cv_location_match_multi"
+        if candidate_location in job_location or job_location in candidate_location:
+            return 100, "partial_cv_location_match_multi"
     if "willing_to_relocate" in modes and relocation_locations:
         for code in relocation_locations:
             keywords = COUNTRY_CODE_LOCATION_KEYWORDS.get(code.upper(), [code.lower()])
             for kw in keywords:
                 if kw in job_location or kw in job_location_type:
-                    return 70, "relocation_location_match"
+                    return 100, "relocation_match_multi"
 
     return 0, "location_not_matched"
 
@@ -987,7 +971,7 @@ def estimate_years_of_experience(work_experience):
 
         total_months += months_between(start, end)
 
-    # 🔥 Your rounding rule
+    # Rounding rule
     years = total_months // 12
     remaining_months = total_months % 12
 
@@ -1052,7 +1036,7 @@ def _batch_embed(texts: list) -> list:
         resp = client.embeddings.create(model="text-embedding-3-small", input=texts)
         return [item.embedding for item in sorted(resp.data, key=lambda x: x.index)]
     except Exception as exc:
-        print(f"⚠️  Embedding API error: {exc}")
+        print(f"[WARN] Embedding API error: {exc}")
         return []
 
 
@@ -1153,16 +1137,16 @@ def match_jobs(cv_data, jobs, preferences):
     candidate_role_text = build_candidate_role_text(cv_data)
     job_titles_raw = [job.get("title", "") for job in jobs]
     texts_to_embed  = [candidate_role_text] + job_titles_raw
-    print(f"🔍 Fetching semantic embeddings for {len(jobs)} jobs…")
+    print(f"[EMB] Fetching semantic embeddings for {len(jobs)} jobs…")
     raw_embeddings = _batch_embed(texts_to_embed)
     if raw_embeddings and len(raw_embeddings) == len(texts_to_embed):
         candidate_emb  = raw_embeddings[0]
         job_embeddings = raw_embeddings[1:]
-        print("✅ Embeddings ready — using semantic role scoring")
+        print("[EMB] Embeddings ready — using semantic role scoring")
     else:
         candidate_emb  = None
         job_embeddings = [None] * len(jobs)
-        print("⚠️  Embeddings unavailable — falling back to keyword scoring")
+        print("[EMB] Embeddings unavailable — falling back to keyword scoring")
 
     results = []
 
@@ -1188,17 +1172,11 @@ def match_jobs(cv_data, jobs, preferences):
         role_relevance_score, matched_role_keywords = compute_role_relevance_score(cv_data, job, semantic_sim)
 
         # 3) Location score /100
-        # If the user expressed no location preference, treat location as neutral
-        # so it never silently eliminates every result.
-        no_location_pref = not preferences.get("modes")
-        if no_location_pref:
-            location_score, location_reason = 70, "no_preference_neutral"
-        else:
-            location_score, location_reason = compute_location_score(
-                candidate_location,
-                preferences,
-                job
-            )
+        location_score, location_reason = compute_location_score(
+            candidate_location,
+            preferences,
+            job
+        )
 
         # 4) Experience score /100
         if required_years <= 0:
@@ -1256,18 +1234,17 @@ def match_jobs(cv_data, jobs, preferences):
     # ── sort all ───────────────────────────────────────────────────────────────
     all_results = sorted(results, key=lambda x: x["match_score"], reverse=True)
 
+    # ── filter: only location is a hard requirement ────────────────────────────
     filtered_results = [
         job for job in all_results
         if job["score_breakdown"]["location_score"] >= 70
-        and job["score_breakdown"]["experience_score"] >= 50
-        and job["score_breakdown"]["grad_student_fit_score"] >= 50
     ]
 
     # ── best-effort fallback ───────────────────────────────────────────────────
-    # If the strict filter returns nothing, surface the top 5 scored jobs anyway
-    # so the user isn't shown a blank results page.  Tag them so the UI can note
-    # they are "closest matches" rather than strong recommendations.
+    # If location filter returns nothing, still enforce location — just pick the
+    # top 5 with the best location score, even if it's 0.
     if not filtered_results and all_results:
+        # Still try to return jobs with the best location score
         top5 = all_results[:5]
         for job in top5:
             job["best_effort"] = True
@@ -1276,7 +1253,7 @@ def match_jobs(cv_data, jobs, preferences):
     return all_results, filtered_results
 
 
-print("🚀 Worker started...")
+print("[WORKER] Worker started...")
 
 # ── pdflatex availability check ───────────────────────────────────────────────
 try:
@@ -1285,12 +1262,12 @@ try:
         capture_output=True, check=True, env=_TEX_ENV
     )
     version_line = r.stdout.split("\n")[0] if r.stdout else "unknown version"
-    print(f"✅ pdflatex found: {version_line}")
+    print(f"[TEX] pdflatex found: {version_line}")
 except FileNotFoundError:
-    print(f"⚠️  pdflatex NOT found at: {PDFLATEX_BIN}")
+    print(f"[TEX] pdflatex NOT found at: {PDFLATEX_BIN}")
     print("   Run: sudo tlmgr install titlesec parskip")
 except Exception as e:
-    print(f"⚠️  pdflatex check failed: {e}")
+    print(f"[TEX] pdflatex check failed: {e}")
 
 def print_matching_summary(all_job_scores, matched_jobs):
     print("\n========== ALL JOB SCORES ==========")
@@ -1321,21 +1298,21 @@ while True:
         ).first()
 
         if job:
-            print(f"\n✅ Found job: {job.id}")
+            print(f"\n[WORKER] Found job: {job.id}")
 
             original_status = job.status   # capture BEFORE overwriting
             job.status = "processing"
             db.commit()
 
             # ================================
-            # 🔀 HANDLE BOTH INPUT MODES
+            # HANDLE BOTH INPUT MODES
             # ================================
 
             # ================================
-            # ✅ APPROVAL → MATCHING (Feature 2 post-approval)
+            # APPROVAL -> MATCHING (Feature 2 post-approval)
             # ================================
             if original_status == "pending_matching":
-                print("✅ CV approved — running matching for builder job...")
+                print("[WORKER] CV approved — running matching for builder job...")
 
                 ai_data = json.loads(job.ai_structured_data) if job.ai_structured_data else {}
 
@@ -1366,12 +1343,12 @@ while True:
                 job.status = "done"
                 job.status_message = f"Done — {len(matches)} job(s) matched."
                 db.commit()
-                print(f"🎉 Matching complete for approved builder job: {job.id}")
+                print(f"[WORKER] Matching complete for approved builder job: {job.id}")
                 continue
 
             if job.file_path:
                 # -------- Feature 1: Upload CV --------
-                print("📄 Processing uploaded CV...")
+                print("[CV] Processing uploaded CV...")
 
                 job.status_message = "Extracting text from PDF..."
                 db.commit()
@@ -1401,26 +1378,40 @@ while True:
 
                 ai_data = ai_extract_cv_data(text)
 
+                # Basic CV validity check
+                has_name = bool(ai_data.get("full_name"))
+                has_contact = bool(ai_data.get("email") or ai_data.get("phone"))
+                has_experience = bool(ai_data.get("work_experience") or ai_data.get("education"))
+                if not (has_name or has_contact) and not has_experience:
+                    job.status = "failed"
+                    job.status_message = "Please upload a valid CV or resume. The file you uploaded does not appear to contain recognizable CV content."
+                    db.commit()
+                    continue
+
             elif job.candidate_profile:
                 # -------- Feature 2: Build CV --------
-                print("🧠 Processing form-based CV...")
+                print("[CV] Processing form-based CV...")
 
                 job.status_message = "Reading your CV data..."
                 db.commit()
 
                 ai_data = json.loads(job.candidate_profile)
 
-                print("\n📄 RAW FORM DATA:")
+                print("\n[CV] RAW FORM DATA:")
                 print(json.dumps(ai_data, indent=2))
 
             else:
                 raise Exception("No valid input source")
 
             # ================================
-            # 🤖 AI REFINEMENT (Feature 2 mainly, but safe for both)
+            # AI REFINEMENT (Feature 2 mainly, but safe for both)
             # ================================
 
             def refine_cv_content(data):
+                cache_key = _hashlib.md5(json.dumps(data, sort_keys=True).encode()).hexdigest()
+                if cache_key in _ai_refine_cache:
+                    return _ai_refine_cache[cache_key]
+
                 prompt = f"""
 You are a strict CV copy-editor. Your ONLY job is light copy-editing.
 
@@ -1451,7 +1442,9 @@ INPUT:
                     input=prompt
                 )
 
-                return json.loads(response.output_text)
+                result = json.loads(response.output_text)
+                _ai_refine_cache[cache_key] = result
+                return result
 
             job.status_message = "Polishing CV content with AI..."
             db.commit()
@@ -1459,13 +1452,13 @@ INPUT:
             try:
                 ai_data = refine_cv_content(ai_data)
             except Exception as refine_error:
-                print(f"⚠️ Refinement failed, using original data: {refine_error}")
+                print(f"[CV] Refinement failed, using original data: {refine_error}")
 
             # Save final structured data
             job.ai_structured_data = json.dumps(ai_data)
 
             # ================================
-            # 🧾 GENERATE LATEX FOR FEATURE 2
+            # GENERATE LATEX FOR FEATURE 2
             # ================================
             if job.candidate_profile:
                 job.status_message = "Generating your CV..."
@@ -1506,35 +1499,35 @@ INPUT:
                         with open(candidate_pdf, "rb") as pf:
                             r2.upload_bytes(r2_key, pf.read(), "application/pdf")
                         pdf_path = r2_key
-                        print(f"✅ PDF uploaded to R2: {r2_key}")
+                        print(f"[TEX] PDF uploaded to R2: {r2_key}")
                         # clean up local temp files
                         for tmp in [candidate_pdf, tex_path]:
                             try: os.remove(tmp)
                             except Exception: pass
                     else:
-                        print("⚠️  pdflatex ran but PDF not found.")
+                        print("[TEX] pdflatex ran but PDF not found.")
                         print("── pdflatex stdout (last 1000 chars) ──")
                         print(result.stdout[-1000:])
                         print("── pdflatex stderr ──")
                         print(result.stderr[-500:])
                 except FileNotFoundError:
-                    print(f"⚠️  pdflatex binary not found at: {PDFLATEX_BIN}")
+                    print(f"[TEX] pdflatex binary not found at: {PDFLATEX_BIN}")
                     print("   Install BasicTeX and run: sudo tlmgr install titlesec parskip")
                 except Exception as compile_err:
-                    print(f"⚠️  PDF compilation failed: {compile_err}")
+                    print(f"[TEX] PDF compilation failed: {compile_err}")
 
                 job.generated_pdf_path = pdf_path
                 job.status = "cv_generated"
                 job.status_message = "CV ready! Review it below before finding matching jobs."
                 db.commit()
 
-                print(f"✅ LaTeX CV generated for job {job.id}")
-                print(f"📄 Saved .tex file at: {tex_path}")
+                print(f"[TEX] LaTeX CV generated for job {job.id}")
+                print(f"[TEX] Saved .tex file at: {tex_path}")
 
-                continue  # ⛔ skip matching until approved
+                continue  # skip matching until approved
 
             # ================================
-            # 🎯 MATCHING
+            # MATCHING
             # ================================
 
             preferences = json.loads(job.user_preferences) if job.user_preferences else {
@@ -1559,10 +1552,10 @@ INPUT:
             job.status_message = f"Done — {len(matches)} job(s) found."
             db.commit()
 
-            print(f"🎉 Finished job: {job.id}\n")
+            print(f"[WORKER] Finished job: {job.id}\n")
 
     except Exception as e:
-        print(f"❌ ERROR: {e}")
+        print(f"[ERROR] {e}")
         traceback.print_exc()
         try:
             if job is not None:

@@ -89,6 +89,16 @@ function showAuthScreen() {
   authError.textContent = "";
   authEmail.value = "";
   authPassword.value = "";
+  // Clear confirm password and rule states
+  const confirmField = document.getElementById("authConfirmPassword");
+  if (confirmField) confirmField.value = "";
+  // Reset password rules to unchecked state
+  ["rule-length","rule-upper","rule-lower","rule-digit","rule-special"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.className = "rule-fail";
+  });
+  if (passwordRules) passwordRules.style.display = "none";
+  if (authFullName) authFullName.value = "";
   // Reset forgot/reset forms back to login state
   document.getElementById("forgotForm")?.classList.remove("visible");
   document.getElementById("resetPassForm")?.classList.remove("visible");
@@ -145,8 +155,7 @@ authToggleBtn.addEventListener("click", () => {
 function checkRule(ruleId, passes) {
   const el = document.getElementById(ruleId);
   if (!el) return;
-  el.textContent = (passes ? "✅ " : "✗ ") + el.textContent.replace(/^[✅✗]\s?/, "");
-  el.style.color = passes ? "#059669" : "#94A3B8";
+  el.className = passes ? "rule-pass" : "rule-fail";
 }
 
 authPassword.addEventListener("input", () => {
@@ -167,6 +176,13 @@ authForm.addEventListener("submit", async (e) => {
   const password  = authPassword.value.trim();
   const full_name = authFullName.value.trim();
   const endpoint  = isLoginMode ? "/login" : "/register";
+
+  // Validate email has a proper TLD (e.g. user@gmail.com not user@gmail)
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  if (!isLoginMode && !emailRegex.test(email)) {
+    authError.textContent = "Please enter a valid email address (e.g. you@example.com).";
+    return;
+  }
 
   if (!isLoginMode && !full_name) {
     authError.textContent = "Please enter your full name.";
@@ -197,7 +213,11 @@ authForm.addEventListener("submit", async (e) => {
     const data = await res.json();
 
     if (!res.ok) {
-      authError.textContent = data.detail || "Something went wrong.";
+      if (data.detail === "Email already registered") {
+        authError.innerHTML = 'Email already registered. <button type="button" style="background:none;border:none;color:var(--primary);font-weight:600;cursor:pointer;padding:0;font-size:inherit;" onclick="switchToLogin()">Try to login instead.</button>';
+      } else {
+        authError.textContent = data.detail || "Something went wrong.";
+      }
       return;
     }
 
@@ -207,6 +227,12 @@ authForm.addEventListener("submit", async (e) => {
     authError.textContent = "Cannot reach the server. Is the backend running?";
   }
 });
+
+function switchToLogin() {
+  if (!isLoginMode) {
+    authToggleBtn.click();
+  }
+}
 
 // On page load: check if already logged in
 if (getToken()) {
@@ -754,11 +780,39 @@ function buildCandidateProfile() {
   };
 }
 
+// Show/hide relocation countries based on checkbox
+document.querySelectorAll('#uploadSection input[type="checkbox"]').forEach(cb => {
+  cb.addEventListener("change", () => {
+    const willRelocate = document.querySelector('#uploadSection input[value="willing_to_relocate"]')?.checked;
+    const group = document.getElementById("relocationCountriesGroup");
+    if (group) group.style.display = willRelocate ? "" : "none";
+  });
+});
+// Also for builder section if it has similar checkboxes
+document.querySelectorAll('#builderSection input[type="checkbox"]').forEach(cb => {
+  cb.addEventListener("change", () => {
+    const willRelocate = document.querySelector('#builderSection input[value="willing_to_relocate"]')?.checked;
+    const group = document.getElementById("relocationCountriesGroupBuilder");
+    if (group) group.style.display = willRelocate ? "" : "none";
+  });
+});
+
 if (uploadForm) {
   uploadForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const fileInput = document.getElementById("cv");
+    if (fileInput.files[0] && fileInput.files[0].size > 10 * 1024 * 1024) {
+      showFormError("File is too large. Please upload a PDF under 10 MB.", "uploadSection");
+      return;
+    }
+
+    // Check if there's already an active analysis
+    if (_activeJobId && _activeInterval) {
+      const ok = confirm("A CV is currently being analyzed. Starting a new one will stop the current analysis. Continue?");
+      if (!ok) return;
+      window.stopAnalysis();
+    }
     const checkedModes = Array.from(
       document.querySelectorAll('#uploadSection input[type="checkbox"]:checked')
     ).map((cb) => cb.value);
@@ -1045,8 +1099,27 @@ function setStatusFailed(msg) {
   statusText.textContent = msg;
 }
 
+let _activeJobId = null;
+let _activeInterval = null;
+
+window.stopAnalysis = function() {
+  if (_activeInterval) { clearInterval(_activeInterval); _activeInterval = null; }
+  const btn = document.getElementById("stopAnalysisBtn");
+  if (btn) btn.style.display = "none";
+  if (_activeJobId) {
+    apiFetch(`${BACKEND_URL}/job/${_activeJobId}/cancel`, {
+      method: "POST", headers: authHeaders()
+    }).catch(() => {});
+    _activeJobId = null;
+  }
+  setStatusFailed("Analysis stopped.");
+};
+
 async function pollResults(jobId) {
   setStatusLoading("Processing…");
+  _activeJobId = jobId;
+  const stopBtn = document.getElementById("stopAnalysisBtn");
+  if (stopBtn) stopBtn.style.display = "";
 
   const interval = setInterval(async () => {
     try {
@@ -1062,6 +1135,8 @@ async function pollResults(jobId) {
       }
 
       clearInterval(interval);
+      _activeInterval = null;
+      if (stopBtn) stopBtn.style.display = "none";
 
       if (data.status === "failed" || data.status.startsWith("failed")) {
         setStatusFailed(data.status_message || "Processing failed. Please try again.");
@@ -1072,10 +1147,13 @@ async function pollResults(jobId) {
       renderResults(data, jobId);
     } catch (err) {
       clearInterval(interval);
+      _activeInterval = null;
+      if (stopBtn) stopBtn.style.display = "none";
       console.error("Polling error:", err);
       setStatusFailed("Error while fetching results. Please try again.");
     }
   }, 3000);
+  _activeInterval = interval;
 }
 
 function renderResults(data, jobId) {
@@ -1477,8 +1555,8 @@ async function loadProfileData() {
     const jobs = data.jobs || data;
 
     if (!jobs.length) {
-      if (cvsList)     cvsList.innerHTML     = "<div class='profile-empty'><div class='profile-empty-icon'>📄</div><strong>No CVs yet</strong><p>Build or upload a CV to get started.</p></div>";
-      if (matchesList) matchesList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>🎯</div><strong>No job matches yet</strong><p>Run job matching on a built CV to see results here.</p></div>";
+      if (cvsList)     cvsList.innerHTML     = "<div class='profile-empty'><div class='profile-empty-icon'>CV</div><strong>No CVs yet</strong><p>Build or upload a CV to get started.</p></div>";
+      if (matchesList) matchesList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>Jobs</div><strong>No job matches yet</strong><p>Run job matching on a built CV to see results here.</p></div>";
     } else {
       if (cvsList) {
         cvsList.innerHTML = jobs.map(j => {
@@ -1490,12 +1568,12 @@ async function loadProfileData() {
           const statusClass = j.status === "done" || j.status === "cv_generated" ? "done" : j.status?.startsWith("fail") ? "failed" : "processing";
           const statusLabel = j.status === "cv_generated" ? "Ready" : j.status === "done" ? "Matched" : j.status || "—";
 
-          const dlPdfBtn   = j.has_pdf    ? `<button class="btn-ghost-sm" onclick="downloadCvPdf('${j.job_id}')">⬇ PDF</button>` : "";
-          const dlUploadBtn = j.has_upload ? `<button class="btn-ghost-sm" onclick="downloadUploadedCv('${j.job_id}')">⬇ Original</button>` : "";
-          const editBtn    = !isUpload    ? `<button class="btn-ghost-sm" onclick="editBuilderCv('${j.job_id}')">✏ Edit</button>` : "";
+          const dlPdfBtn   = j.has_pdf    ? `<button class="btn-ghost-sm" onclick="downloadCvPdf('${j.job_id}')">PDF</button>` : "";
+          const dlUploadBtn = j.has_upload ? `<button class="btn-ghost-sm" onclick="downloadUploadedCv('${j.job_id}')">Original</button>` : "";
+          const editBtn    = !isUpload    ? `<button class="btn-ghost-sm" onclick="editBuilderCv('${j.job_id}')">Edit</button>` : "";
 
           return `<div class="saved-cv-card" id="cv-card-${j.job_id}">
-            <div class="saved-cv-icon">${isUpload ? "📤" : "🛠"}</div>
+            <div class="saved-cv-icon">${isUpload ? "UP" : "CV"}</div>
             <div class="saved-cv-info">
               <div class="cv-name-wrap">
                 <strong id="cv-name-${j.job_id}">${name}</strong>
@@ -1514,14 +1592,14 @@ async function loadProfileData() {
       if (matchesList) {
         const withMatches = jobs.filter(j => j.match_count > 0);
         if (!withMatches.length) {
-          matchesList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>🎯</div><strong>No job matches yet</strong><p>Run 'Find Jobs' on a built CV to see results here.</p></div>";
+          matchesList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>Jobs</div><strong>No job matches yet</strong><p>Run 'Find Jobs' on a built CV to see results here.</p></div>";
         } else {
           matchesList.innerHTML = withMatches.map(j => {
             const date = j.created_at ? new Date(j.created_at).toLocaleDateString() : "—";
             const top = j.top_match;
             if (!top) return "";
             return `<div class="saved-cv-card">
-              <div class="saved-cv-icon">💼</div>
+              <div class="saved-cv-icon">Job</div>
               <div class="saved-cv-info">
                 <strong>${escapeHtml(top.title || "Job")}</strong>
                 <span>${escapeHtml(top.company || "")} · ${date}</span>
@@ -1544,7 +1622,7 @@ async function loadProfileData() {
     const liked = await res.json();
     if (!likedList) return;
     if (!liked.length) {
-      likedList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>♡</div><strong>No saved jobs yet</strong><p>Hit ♡ on any job result to save it here.</p></div>";
+      likedList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>&#9825;</div><strong>No saved jobs yet</strong><p>Hit the save button on any job result to save it here.</p></div>";
     } else {
       likedList.innerHTML = liked.map(l => `
         <div class="saved-cv-card">
@@ -1643,7 +1721,7 @@ window.deleteCv = async function (jobId) {
     document.getElementById(`cv-card-${jobId}`)?.remove();
     const cvsList = document.getElementById("profileCvsList");
     if (cvsList && cvsList.children.length === 0) {
-      cvsList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>📄</div><strong>No CVs yet</strong><p>Build or upload a CV to get started.</p></div>";
+      cvsList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>CV</div><strong>No CVs yet</strong><p>Build or upload a CV to get started.</p></div>";
     }
   } catch (_) {
     alert("Failed to delete. Please try again.");
@@ -1872,5 +1950,22 @@ window.editBuilderCv = async function (jobId) {
 
   } catch (err) {
     alert("Failed to load CV for editing. Please try again.");
+  }
+};
+
+window.deleteAccount = async function() {
+  const confirmed = confirm("Are you sure you want to delete your account?\n\nThis will permanently delete all your uploaded CVs and saved jobs. Your account ID will be retained but your data will be removed.");
+  if (!confirmed) return;
+  try {
+    const res = await apiFetch(`${BACKEND_URL}/delete-account`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error();
+    clearSession();
+    showAuthScreen();
+    authError.textContent = "Your account has been deleted.";
+  } catch (_) {
+    alert("Failed to delete account. Please try again.");
   }
 };

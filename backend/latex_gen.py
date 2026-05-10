@@ -43,6 +43,9 @@ _MONTH_MAP = {
     "dec": 12, "december": 12,
 }
 
+_MONTH_ABBREV = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
 
 def _norm(value: str) -> str:
     return (value or "").strip().lower()
@@ -77,6 +80,21 @@ def parse_month_year(date_str, blank_means_present=False):
     return year, month
 
 
+def fmt_date(date_str, blank_means_present=False):
+    """Convert a date string to 'Mmm YYYY' display form."""
+    if not date_str:
+        return "Present" if blank_means_present else ""
+    s = (date_str or "").strip().lower()
+    if "present" in s:
+        return "Present"
+    parsed = parse_month_year(date_str, blank_means_present)
+    if not parsed:
+        return str(date_str)
+    year, month = parsed
+    month = max(1, min(12, month))
+    return f"{_MONTH_ABBREV[month]} {year}"
+
+
 def months_between(start_tuple, end_tuple):
     if not start_tuple or not end_tuple:
         return 0
@@ -108,12 +126,21 @@ def latex_escape(text):
     return result
 
 
-def render_bullets(items):
+def render_bullets(items, max_bullets=None):
     if not items:
         return ""
-    bullet_lines = "\n".join(
-        f"\\item {latex_escape(item)}" for item in items if item
-    )
+    if max_bullets is not None:
+        items = items[:max_bullets]
+
+    def _fmt(item):
+        item = item.strip()
+        if not item:
+            return None
+        if item[-1] not in ".!?)":
+            item += "."
+        return f"\\item {latex_escape(item)}"
+
+    bullet_lines = "\n".join(line for line in (_fmt(i) for i in items) if line)
     if not bullet_lines.strip():
         return ""
     return f"""
@@ -160,6 +187,22 @@ def generate_latex_cv(profile: dict) -> str:
     awards          = profile.get("awards", [])          or []
     languages       = profile.get("languages", [])       or []
 
+    # ── Page limit: compute before block assembly ──────────────────────────────
+    _exp_months = 0
+    for _exp in work_experience:
+        _s = parse_month_year(_exp.get("start_date", ""))
+        _e_raw = (_exp.get("end_date") or "").strip()
+        if not _e_raw or "present" in _e_raw.lower():
+            _now = datetime.now()
+            _e = (_now.year, _now.month)
+        else:
+            _e = parse_month_year(_e_raw)
+        if _s and _e:
+            _exp_months += months_between(_s, _e)
+    _years_exp = _exp_months // 12
+    allow_two_pages = (_years_exp >= 7 and len(work_experience) >= 3)
+    max_bullets = None if allow_two_pages else 3
+
     # ── inner helpers ──────────────────────────────────────────────────────────
 
     def entry_header(left_bold, right, subtitle=""):
@@ -173,8 +216,9 @@ def generate_latex_cv(profile: dict) -> str:
         return "\n".join(lines)
 
     def date_range(start, end, open_ended=False):
-        end_display = end if end else ("Present" if open_ended else "")
-        parts = [p for p in [start, end_display] if p]
+        start_fmt = fmt_date(start) if start else ""
+        end_fmt   = fmt_date(end) if end else ("Present" if open_ended else "")
+        parts = [p for p in [start_fmt, end_fmt] if p]
         return " -- ".join(parts)
 
     # ── Education ──────────────────────────────────────────────────────────────
@@ -183,8 +227,8 @@ def generate_latex_cv(profile: dict) -> str:
         institution = latex_escape(edu.get("institution", ""))
         degree      = latex_escape(edu.get("degree", ""))
         field       = latex_escape(edu.get("field_of_study") or "")
-        start       = latex_escape(edu.get("start_date", ""))
-        end         = latex_escape(edu.get("end_date", ""))
+        start       = edu.get("start_date", "")
+        end         = edu.get("end_date", "")
         gpa_raw     = (edu.get("gpa") or "").strip()
         # Strip any "GPA: " prefix already baked in by the frontend before re-labelling
         gpa_display = gpa_raw[5:].strip() if gpa_raw.upper().startswith("GPA:") else gpa_raw
@@ -200,7 +244,7 @@ def generate_latex_cv(profile: dict) -> str:
 
         education_blocks.append(
             entry_header(institution, date_range(start, end, open_ended=True), subtitle)
-            + (render_bullets(desc) if desc else "\n\\vspace{3pt}\n")
+            + (render_bullets(desc, max_bullets) if desc else "\n\\vspace{3pt}\n")
         )
 
     # ── Work Experience ────────────────────────────────────────────────────────
@@ -209,8 +253,8 @@ def generate_latex_cv(profile: dict) -> str:
         org      = latex_escape(exp.get("organization") or exp.get("institution_name") or "")
         position = latex_escape(exp.get("position", ""))
         loc      = latex_escape(exp.get("location") or "")
-        start    = latex_escape(exp.get("start_date", ""))
-        end      = latex_escape(exp.get("end_date", ""))
+        start    = exp.get("start_date", "")
+        end      = exp.get("end_date", "")
         bullets  = ensure_list(
             exp.get("description") or exp.get("description_points") or exp.get("tasks_summary")
         )
@@ -220,7 +264,7 @@ def generate_latex_cv(profile: dict) -> str:
 
         experience_blocks.append(
             entry_header(position or org, date_range(start, end, open_ended=True), subtitle)
-            + render_bullets(bullets)
+            + render_bullets(bullets, max_bullets)
             + "\n\\vspace{3pt}\n"
         )
 
@@ -232,10 +276,13 @@ def generate_latex_cv(profile: dict) -> str:
         technologies = proj.get("technologies") or []
         desc         = ensure_list(proj.get("description"))
         link_raw     = (proj.get("link") or "").strip()
+        start        = proj.get("start_date") or ""
+        end          = proj.get("end_date") or ""
 
         tech_line = ", ".join(latex_escape(t) for t in technologies if t)
         subtitle_parts = [p for p in [role, tech_line] if p]
         subtitle = " $\\cdot$ ".join(subtitle_parts)
+        date_str = date_range(start, end) if (start or end) else ""
 
         link_str = ""
         if link_raw:
@@ -245,9 +292,9 @@ def generate_latex_cv(profile: dict) -> str:
             )
 
         project_blocks.append(
-            entry_header(title, "", subtitle)
+            entry_header(title, date_str, subtitle)
             + link_str
-            + render_bullets(desc)
+            + render_bullets(desc, max_bullets)
             + "\n\\vspace{3pt}\n"
         )
 
@@ -257,14 +304,15 @@ def generate_latex_cv(profile: dict) -> str:
         title        = latex_escape(item.get("title", ""))
         role         = latex_escape(item.get("role", ""))
         organization = latex_escape(item.get("organization", ""))
-        date         = latex_escape(item.get("date") or "")
+        date_raw     = item.get("date") or ""
+        date         = fmt_date(date_raw) if date_raw else ""
         desc         = ensure_list(item.get("description"))
 
         subtitle = " $\\cdot$ ".join(p for p in [role, organization] if p)
 
         extracurricular_blocks.append(
             entry_header(title, date, subtitle)
-            + render_bullets(desc)
+            + render_bullets(desc, max_bullets)
             + "\n\\vspace{3pt}\n"
         )
 
@@ -306,20 +354,7 @@ def generate_latex_cv(profile: dict) -> str:
         else:
             language_lines.append(latex_escape(lang))
 
-    # ── Page limit rule ────────────────────────────────────────────────────────
-    total_exp_months = 0
-    for exp in work_experience:
-        s = parse_month_year(exp.get("start_date", ""))
-        e_raw = (exp.get("end_date") or "").strip()
-        if not e_raw or "present" in e_raw.lower():
-            now = datetime.now()
-            e = (now.year, now.month)
-        else:
-            e = parse_month_year(e_raw)
-        if s and e:
-            total_exp_months += months_between(s, e)
-    years_exp = total_exp_months // 12
-    allow_two_pages = (years_exp >= 7 and len(work_experience) >= 3)
+    # ── Font / margins ─────────────────────────────────────────────────────────
     font_size   = "10pt"
     top_margin  = "0.55in" if allow_two_pages else "0.50in"
     side_margin = "0.65in" if allow_two_pages else "0.60in"
@@ -378,19 +413,33 @@ def generate_latex_cv(profile: dict) -> str:
 
     formatted_links_header = []
     for link in links:
-        url_raw      = (link.get("url") or "").strip()
-        display_raw  = (link.get("display") or link.get("url") or "").strip()
-        link_type_raw = (link.get("type") or "").strip()
+        url_raw     = (link.get("url") or "").strip()
+        display_raw = (link.get("display") or link.get("url") or "").strip()
         if url_raw:
             label = latex_escape(display_raw or url_raw)
             escaped_url = latex_escape(url_raw)
-            entry = f"\\href{{{escaped_url}}}{{{label}}}"
-            if link_type_raw:
-                entry = f"{latex_escape(link_type_raw)}: {entry}"
-            formatted_links_header.append(entry)
+            formatted_links_header.append(f"\\href{{{escaped_url}}}{{{label}}}")
 
     header_line1 = " $\\cdot$ ".join(contact_items)
     header_line2 = " $\\cdot$ ".join(formatted_links_header)
+
+    # Single header line when combined text is short enough; else split
+    _contact_raw = " ".join(filter(None, [
+        profile.get("email", ""), profile.get("phone", ""), profile.get("location", ""),
+    ]))
+    _links_raw = " ".join(filter(None, [
+        (lk.get("display") or lk.get("url") or "") for lk in links if lk.get("url")
+    ]))
+    if header_line1 and header_line2 and len(_contact_raw) + len(_links_raw) <= 90:
+        header_block = f"\\small {header_line1} $\\cdot$ {header_line2}"
+    elif header_line1 and header_line2:
+        header_block = f"\\small {header_line1} \\\\[2pt]\n  \\small {header_line2}"
+    elif header_line1:
+        header_block = f"\\small {header_line1}"
+    elif header_line2:
+        header_block = f"\\small {header_line2}"
+    else:
+        header_block = ""
 
     # ── Section strings ────────────────────────────────────────────────────────
     summary_section = f"\\section*{{Summary}}\n\\small {summary}\n" if summary else ""
@@ -464,8 +513,7 @@ def generate_latex_cv(profile: dict) -> str:
 % ════════════════════════════════════════════════════
 \\begin{{center}}
   {{\\LARGE \\textbf{{{name}}}}} \\\\[4pt]
-  \\small {header_line1} \\\\[2pt]
-  \\small {header_line2}
+  {header_block}
 \\end{{center}}
 
 \\vspace{{2pt}}

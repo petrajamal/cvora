@@ -617,6 +617,10 @@ function addProjectEntry() {
     <input class="project-role" placeholder="Role (optional, max 100 chars)" maxlength="100" />
     <input class="project-technologies"
            placeholder="Technologies, comma-separated (optional)" maxlength="300" />
+    <label>Start Date (optional)</label>
+    <input class="project-start" type="month" />
+    <label>End Date (optional)</label>
+    <input class="project-end" type="month" />
     <button type="button" class="add-url-btn">+ Add URL</button>
     <div class="url-row" style="display:none;">
       <input class="project-link" type="url" placeholder="https://…" maxlength="500"
@@ -871,6 +875,8 @@ function buildCandidateProfile() {
         .filter(Boolean);
       const link = getTextValue(".project-link", card);
       const description = splitBullets(getTextValue(".project-description", card));
+      const start_date = card.querySelector(".project-start")?.value || null;
+      const end_date   = card.querySelector(".project-end")?.value   || null;
       if (!title && description.length === 0) return null;
       return {
         title,
@@ -878,6 +884,8 @@ function buildCandidateProfile() {
         technologies,
         link: link || null,
         description,
+        start_date: start_date || null,
+        end_date: end_date || null,
       };
     }),
     extracurriculars: collectEntries("extracurricularEntries", (card) => {
@@ -1880,7 +1888,8 @@ window.startRename = function (jobId, btn) {
 };
 
 window.deleteCv = async function (jobId) {
-  if (!confirm("Delete this CV? This cannot be undone.")) return;
+  const confirmed = await showConfirmModal("Delete CV", "Delete this CV? This cannot be undone.");
+  if (!confirmed) return;
   try {
     const res = await apiFetch(`${BACKEND_URL}/job/${jobId}`, {
       method: "DELETE",
@@ -2078,6 +2087,8 @@ window.editBuilderCv = async function (jobId) {
       card.querySelector(".project-title").value = proj.title || "";
       card.querySelector(".project-role").value = proj.role || "";
       card.querySelector(".project-technologies").value = (proj.technologies || []).join(", ");
+      card.querySelector(".project-start").value = proj.start_date || "";
+      card.querySelector(".project-end").value   = proj.end_date   || "";
       if (proj.link) {
         const addBtn = card.querySelector(".add-url-btn");
         const urlRow = card.querySelector(".url-row");
@@ -2353,7 +2364,10 @@ window.downloadCvLatex = async function(jobId) {
 };
 
 window.deleteAccount = async function() {
-  const confirmed = confirm("Are you sure you want to delete your account?\n\nThis will permanently delete all your uploaded CVs and saved jobs. Your account ID will be retained but your data will be removed.");
+  const confirmed = await showConfirmModal(
+    "Delete Account",
+    "This will permanently delete all your CVs and saved jobs. Your account ID will be retained but your data will be removed. Continue?"
+  );
   if (!confirmed) return;
   try {
     const res = await apiFetch(`${BACKEND_URL}/delete-account`, {

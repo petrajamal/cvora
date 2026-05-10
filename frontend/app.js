@@ -484,6 +484,10 @@ function addEducationEntry() {
         <option>F</option>
       </select>
     </div>
+
+    <label>Description (optional)</label>
+    <textarea class="education-description" rows="3" maxlength="1000"
+      placeholder="Notable coursework, achievements, thesis — one bullet per line"></textarea>
   `));
   const card = container.lastElementChild;
   attachRemoveHandlers("educationEntries");
@@ -536,8 +540,12 @@ function addExperienceEntry() {
     </div>
     <input class="experience-end" type="month" />
     <input class="experience-location" placeholder="Location (optional)" maxlength="100" />
-    <textarea class="experience-description" rows="4" maxlength="2000"
-      placeholder="Responsibilities / achievements — one bullet per line *" required></textarea>
+    <div style="position:relative;">
+      <textarea class="experience-description" rows="4" maxlength="2000"
+        placeholder="Responsibilities / achievements — one bullet per line *" required></textarea>
+      <button type="button" class="enhance-desc-btn" title="AI-enhance description (min 600 chars)"
+        style="position:absolute;bottom:8px;right:8px;padding:3px 8px;font-size:11px;font-weight:600;border:1px solid var(--primary-border);border-radius:4px;background:var(--primary-light);color:var(--primary);cursor:pointer;">Enhance</button>
+    </div>
   `));
   const card = container.lastElementChild;
   attachRemoveHandlers("experienceEntries");
@@ -548,6 +556,36 @@ function addExperienceEntry() {
   cwCb.addEventListener("change", () => {
     endInp.disabled = cwCb.checked;
     if (cwCb.checked) endInp.value = "";
+  });
+
+  // AI enhance description button
+  const enhanceBtn  = card.querySelector(".enhance-desc-btn");
+  const descTextarea = card.querySelector(".experience-description");
+  enhanceBtn.addEventListener("click", async () => {
+    const text = descTextarea.value.trim();
+    if (text.length < 600) {
+      enhanceBtn.textContent = "Need 600+ chars";
+      setTimeout(() => { enhanceBtn.textContent = "Enhance"; }, 2000);
+      return;
+    }
+    enhanceBtn.disabled = true;
+    enhanceBtn.textContent = "…";
+    try {
+      const res = await apiFetch(`${BACKEND_URL}/enhance-description`, {
+        method:  "POST",
+        headers: authHeaders(),
+        body:    JSON.stringify({ text }),
+      });
+      if (!res.ok) throw new Error();
+      const { enhanced } = await res.json();
+      descTextarea.value = enhanced;
+    } catch (_) {
+      enhanceBtn.textContent = "Failed";
+      setTimeout(() => { enhanceBtn.textContent = "Enhance"; }, 2000);
+    } finally {
+      enhanceBtn.disabled = false;
+      if (enhanceBtn.textContent === "…") enhanceBtn.textContent = "Enhance";
+    }
   });
 }
 
@@ -795,8 +833,9 @@ function buildCandidateProfile() {
         gpa = card.querySelector(".education-letter-select")?.value || null;
       }
 
+      const description = splitBullets(getTextValue(".education-description", card));
       if (!institution && !degree && !start_date && !end_date) return null;
-      return { institution, degree, start_date, end_date, field_of_study: field_of_study || null, gpa };
+      return { institution, degree, start_date, end_date, field_of_study: field_of_study || null, gpa, description: description.length ? description : null };
     }),
     projects: collectEntries("projectEntries", (card) => {
       const title = getTextValue(".project-title", card);
@@ -1014,7 +1053,7 @@ async function updateCvPreview() {
     const blob = await res.blob();
     if (_previewBlobUrl) URL.revokeObjectURL(_previewBlobUrl);
     _previewBlobUrl = URL.createObjectURL(blob);
-    previewFrame.src = _previewBlobUrl;
+    previewFrame.src = _previewBlobUrl + "#toolbar=0&navpanes=0";
     // Show frame, hide placeholder
     const _ph = document.getElementById("previewPlaceholder");
     if (_ph) _ph.style.display = "none";
@@ -1659,7 +1698,7 @@ async function loadProfileData() {
           const statusClass = j.status === "done" || j.status === "cv_generated" ? "done" : j.status?.startsWith("fail") ? "failed" : "processing";
           const statusLabel = j.status === "cv_generated" ? "Ready" : j.status === "done" ? "Matched" : j.status || "—";
 
-          const viewBtn    = j.has_pdf    ? `<button class="btn-ghost-sm" onclick="openPdfViewer('${j.job_id}')" title="View PDF">&#128065;</button>` : "";
+          const viewBtn    = j.has_pdf    ? `<button class="btn-ghost-sm" onclick="openPdfViewer('${j.job_id}')" title="View PDF"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>` : "";
           const dlPdfBtn   = j.has_pdf    ? `<button class="btn-ghost-sm" onclick="downloadCvPdf('${j.job_id}')">PDF</button>` : "";
           const dlLatexBtn = !isUpload && j.has_latex ? `<button class="btn-ghost-sm" onclick="downloadCvLatex('${j.job_id}')">LaTeX</button>` : "";
           const dlUploadBtn = j.has_upload ? `<button class="btn-ghost-sm" onclick="downloadUploadedCv('${j.job_id}')">Original</button>` : "";
@@ -1683,7 +1722,14 @@ async function loadProfileData() {
         }).join("");
       }
       if (matchesList) {
-        const withMatches = jobs.filter(j => j.match_count > 0);
+        const seenMatchKeys = new Set();
+        const withMatches = jobs.filter(j => {
+          if (!j.match_count || !j.top_match) return false;
+          const key = j.top_match.url || `${j.top_match.title}|${j.top_match.company}`;
+          if (seenMatchKeys.has(key)) return false;
+          seenMatchKeys.add(key);
+          return true;
+        });
         if (!withMatches.length) {
           matchesList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>Jobs</div><strong>No job matches yet</strong><p>Run 'Find Jobs' on a built CV to see results here.</p></div>";
         } else {
@@ -1962,6 +2008,11 @@ window.editBuilderCv = async function (jobId) {
           card.querySelector(".education-letter-select").value = edu.gpa;
         }
       }
+      // Description
+      const descEl = card.querySelector(".education-description");
+      if (descEl && edu.description) {
+        descEl.value = Array.isArray(edu.description) ? edu.description.join("\n") : (edu.description || "");
+      }
     });
 
     // Work experience
@@ -2112,7 +2163,7 @@ function openPdfViewerWithBlob(blobUrl, title) {
   const frame = document.getElementById("pdfViewerFrame");
   const titleEl = document.getElementById("pdfViewerTitle");
   if (titleEl) titleEl.textContent = title || "CV Preview";
-  frame.src = blobUrl;
+  frame.src = blobUrl + "#toolbar=0&navpanes=0";
   modal.style.display = "flex";
   document.body.style.overflow = "hidden";
 }

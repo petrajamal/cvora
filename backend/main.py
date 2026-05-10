@@ -906,12 +906,13 @@ async def save_cv_only(payload: dict, user_id: str = Depends(get_current_user_id
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"LaTeX generation failed: {exc}")
 
-    pdf_bytes = None
-    pdf_path  = None
     try:
         pdf_bytes = compile_to_pdf(latex_source)
-    except Exception:
-        pass  # saved without PDF if pdflatex unavailable
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"CV generation failed: {exc}")
+    pdf_path = None
 
     job_id = str(uuid.uuid4())
     if pdf_bytes:
@@ -977,6 +978,33 @@ def view_cv(job_id: str, user_id: str = Depends(get_current_user_id)):
         )
     finally:
         db.close()
+
+
+@app.post("/enhance-description")
+async def enhance_description(payload: dict, user_id: str = Depends(get_current_user_id)):
+    """Use AI to condense a long job description into tight CV bullet points."""
+    from openai import OpenAI
+    text = (payload.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="No text provided")
+    if len(text) > 4000:
+        text = text[:4000]
+    rate_limit(f"enhance:{user_id}", max_calls=20, window=3600)
+    try:
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        response = client.responses.create(
+            model="gpt-4o-mini",
+            input=(
+                "Rewrite the following job description as 3–5 tight, action-verb CV bullet points. "
+                "Each bullet must start with a strong verb, be under 120 characters, and capture "
+                "the key achievement or responsibility. Output only the bullets, one per line, "
+                "no dashes or markers.\n\n" + text
+            ),
+        )
+        bullets = response.output_text.strip()
+        return {"enhanced": bullets}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Enhancement failed: {exc}")
 
 
 @app.post("/approve-cv/{job_id}")

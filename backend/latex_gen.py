@@ -135,16 +135,27 @@ def ensure_list(value):
 
 # ── CV generator ──────────────────────────────────────────────────────────────
 
+def _sort_chrono(entries, end_key="end_date", start_key="start_date"):
+    """Sort entries newest-first by end date then start date."""
+    def _key(e):
+        end   = (e.get(end_key)   or "").strip().lower()
+        start = (e.get(start_key) or "").strip().lower()
+        if not end or "present" in end:
+            end = "9999-12"
+        return (end, start)
+    return sorted(entries, key=_key, reverse=True)
+
+
 def generate_latex_cv(profile: dict) -> str:
     name     = latex_escape(profile.get("full_name", ""))
     links    = profile.get("links", []) or []
     summary  = latex_escape(profile.get("summary", ""))
 
-    education       = profile.get("education", [])       or []
-    work_experience = profile.get("work_experience", []) or []
-    projects        = profile.get("projects", [])        or []
+    education       = _sort_chrono(profile.get("education", [])       or [], "end_date",  "start_date")
+    work_experience = _sort_chrono(profile.get("work_experience", []) or [], "end_date",  "start_date")
+    projects        = _sort_chrono(profile.get("projects", [])        or [], "end_date",  "start_date")
     skills          = profile.get("skills", [])          or []
-    extracurriculars = profile.get("extracurriculars", []) or []
+    extracurriculars = _sort_chrono(profile.get("extracurriculars", []) or [], "date", "date")
     certifications  = profile.get("certifications", [])  or []
     awards          = profile.get("awards", [])          or []
     languages       = profile.get("languages", [])       or []
@@ -175,6 +186,7 @@ def generate_latex_cv(profile: dict) -> str:
         start       = latex_escape(edu.get("start_date", ""))
         end         = latex_escape(edu.get("end_date", ""))
         gpa         = latex_escape(edu.get("gpa") or "")
+        desc        = ensure_list(edu.get("description") or edu.get("details"))
 
         degree_line = " -- ".join(p for p in [degree, field] if p)
         extras = []
@@ -185,7 +197,7 @@ def generate_latex_cv(profile: dict) -> str:
 
         education_blocks.append(
             entry_header(institution, date_range(start, end, open_ended=True), subtitle)
-            + "\n\\vspace{3pt}\n"
+            + (render_bullets(desc) if desc else "\n\\vspace{3pt}\n")
         )
 
     # ── Work Experience ────────────────────────────────────────────────────────
@@ -338,9 +350,9 @@ def generate_latex_cv(profile: dict) -> str:
     if skills_rows:
         skills_section = (
             "\\section*{Skills}\n"
-            "\\begin{tabular}{@{}p{2.2cm}p{13cm}@{}}\n"
+            "\\begin{tabular}{@{}p{2.2cm}p{\\dimexpr\\textwidth-2.2cm\\relax}@{}}\n"
             + "\n".join(skills_rows)
-            + "\n\\end{tabular}"
+            + "\n\\end{tabular}\\par\\vspace{3pt}"
         )
     else:
         skills_section = ""

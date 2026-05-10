@@ -804,7 +804,7 @@
        CV PREVIEW PANEL
     ════════════════════════════════════════════ */
     #previewCard {
-      width: 480px;
+      width: 560px;
       flex-shrink: 0;
       position: sticky;
       top: calc(var(--nav-height) + 16px);
@@ -814,10 +814,10 @@
       box-shadow: var(--shadow);
       padding: 16px;
       margin-bottom: 20px;
-      max-height: calc(100vh - var(--nav-height) - 32px);
+      height: calc(100vh - var(--nav-height) - 32px);
       display: flex;
       flex-direction: column;
-      overflow-y: auto;
+      overflow: hidden;
     }
 
     #previewToolbar {
@@ -873,8 +873,8 @@
 
     #previewFrame {
       width: 100%;
-      flex-shrink: 0;
-      aspect-ratio: 210 / 297;
+      flex: 1;
+      min-height: 0;
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       display: block;
@@ -962,10 +962,10 @@
        MODE BUTTON ACTIVE STATE
     ════════════════════════════════════════════ */
     .mode-buttons button.mode-active {
-      background: var(--primary-light) !important;
+      background: var(--primary) !important;
       border: none !important;
-      color: var(--primary) !important;
-      box-shadow: 0 1px 4px rgba(79,70,229,0.18) !important;
+      color: #fff !important;
+      box-shadow: 0 2px 8px rgba(79,70,229,0.3) !important;
       font-weight: 600 !important;
     }
 
@@ -1420,8 +1420,7 @@
     ════════════════════════════════════════════ */
     @media (max-width: 900px) {
       #builderPreviewLayout { flex-direction: column; }
-      #previewCard { width: 100%; position: static; overflow-y: visible; }
-      #previewFrame { aspect-ratio: 210 / 297; height: auto; }
+      #previewCard { width: 100%; position: static; height: 80vw; max-height: 600px; overflow: hidden; }
     }
 
     @media (max-width: 600px) {
@@ -1462,7 +1461,7 @@
 
       select[multiple] { height: 120px; }
 
-      #previewFrame { aspect-ratio: 210 / 297; height: auto; }
+      #previewFrame { flex: 1; min-height: 0; }
     }
   </style>
 </head>
@@ -1925,7 +1924,7 @@
                 <button type="button" onclick="downloadBuilderFormat('latex')" style="display:block;width:100%;text-align:left;padding:10px 16px;font-size:13px;font-weight:600;background:none;border:none;cursor:pointer;color:var(--text);border-top:1px solid var(--border);">LaTeX (.tex)</button>
               </div>
             </div>
-            <button type="button" id="viewCvBtn" title="View full screen" style="display:none;padding:6px 10px;">&#128065;</button>
+            <button type="button" id="viewCvBtn" title="View full screen" style="display:none;padding:6px 10px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
             <button type="button" id="findJobsBtn">Find Jobs</button>
             <span id="previewStatus"></span>
           </div>

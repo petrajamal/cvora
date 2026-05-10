@@ -1142,7 +1142,7 @@ async def apply_line_rules(profile: dict) -> dict:
     import copy
     from openai import AsyncOpenAI
 
-    MAX_ENTRY_LINES = 6
+    MAX_ENTRY_LINES = 10
 
     p = copy.deepcopy(profile)
 

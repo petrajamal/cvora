@@ -995,10 +995,11 @@ async def enhance_description(payload: dict, user_id: str = Depends(get_current_
         response = client.responses.create(
             model="gpt-4o-mini",
             input=(
-                "Rewrite the following job description as 3–5 tight, action-verb CV bullet points. "
-                "Each bullet must start with a strong verb, be under 120 characters, and capture "
-                "the key achievement or responsibility. Output only the bullets, one per line, "
-                "no dashes or markers.\n\n" + text
+                "Improve the following CV work experience description. "
+                "Fix grammar, improve clarity, and use strong action verbs where appropriate. "
+                "Keep the same number of bullet points and the same approximate length. "
+                "Do not add new content or remove existing responsibilities. "
+                "Output only the improved bullets, one per line, no dashes or markers.\n\n" + text
             ),
         )
         bullets = response.output_text.strip()

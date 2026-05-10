@@ -348,11 +348,15 @@ def generate_latex_cv(profile: dict) -> str:
         skills_rows.append(f"\\textbf{{Skills:}} & {skills_line} \\\\")
 
     if skills_rows:
+        # Remove trailing \\ from last row (not needed + can cause pdflatex warnings)
+        rows_latex = "\n".join(skills_rows)
+        if rows_latex.endswith("\\\\"):
+            rows_latex = rows_latex[:-2]
         skills_section = (
             "\\section*{Skills}\n"
-            "\\begin{tabular}{@{}p{2.2cm}p{\\dimexpr\\textwidth-2.2cm\\relax}@{}}\n"
-            + "\n".join(skills_rows)
-            + "\n\\end{tabular}\\par\\vspace{3pt}"
+            "\\begin{tabular}{@{}p{2.2cm}p{\\dimexpr\\linewidth-2.2cm\\relax}@{}}\n"
+            + rows_latex
+            + "\n\\end{tabular}\n\\par\\vspace{6pt}\n"
         )
     else:
         skills_section = ""

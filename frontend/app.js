@@ -543,7 +543,7 @@ function addExperienceEntry() {
     <div style="position:relative;">
       <textarea class="experience-description" rows="4" maxlength="2000"
         placeholder="Responsibilities / achievements — one bullet per line *" required></textarea>
-      <button type="button" class="enhance-desc-btn" title="AI-enhance description (min 600 chars)"
+      <button type="button" class="enhance-desc-btn" title="AI-enhance: fixes grammar and tightens phrasing"
         style="position:absolute;bottom:8px;right:8px;padding:3px 8px;font-size:11px;font-weight:600;border:1px solid var(--primary-border);border-radius:4px;background:var(--primary-light);color:var(--primary);cursor:pointer;">Enhance</button>
     </div>
   `));
@@ -563,11 +563,7 @@ function addExperienceEntry() {
   const descTextarea = card.querySelector(".experience-description");
   enhanceBtn.addEventListener("click", async () => {
     const text = descTextarea.value.trim();
-    if (text.length < 600) {
-      enhanceBtn.textContent = "Need 600+ chars";
-      setTimeout(() => { enhanceBtn.textContent = "Enhance"; }, 2000);
-      return;
-    }
+    if (!text) return;
     enhanceBtn.disabled = true;
     enhanceBtn.textContent = "…";
     try {
@@ -1909,8 +1905,12 @@ window.editBuilderCv = async function (jobId) {
     const data = await res.json();
     const jobs = data.jobs || data;
     const job = jobs.find(j => j.job_id === jobId);
-    if (!job || !job.candidate_profile) {
-      alert("Could not load CV data.");
+    if (!job) {
+      alert("CV not found.");
+      return;
+    }
+    if (!job.candidate_profile) {
+      alert("This CV has no saved form data to load (it may have been uploaded rather than built, or was created before editing was supported).");
       return;
     }
 

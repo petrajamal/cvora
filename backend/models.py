@@ -6,12 +6,14 @@ from database import Base
 class User(Base):
     __tablename__ = "users"
 
-    id              = Column(String, primary_key=True, index=True)
-    email           = Column(String, unique=True, nullable=False, index=True)
-    hashed_password = Column(String, nullable=False)
-    full_name       = Column(String, nullable=True)
-    created_at      = Column(DateTime, server_default=func.now(), nullable=True)
-    is_deleted      = Column(Boolean, default=False, nullable=True)
+    id                      = Column(String, primary_key=True, index=True)
+    email                   = Column(String, unique=True, nullable=False, index=True)
+    hashed_password         = Column(String, nullable=False)
+    full_name               = Column(String, nullable=True)
+    email_verified          = Column(Boolean, default=False, nullable=True)
+    verification_token_hash = Column(String, nullable=True, index=True)
+    created_at              = Column(DateTime, server_default=func.now(), nullable=True)
+    is_deleted              = Column(Boolean, default=False, nullable=True)
 
 
 class Job(Base):

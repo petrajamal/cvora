@@ -10,7 +10,6 @@ console.log("app.js loaded");
 const authScreen     = document.getElementById("authScreen");
 const appScreen      = document.getElementById("appScreen");
 const authForm       = document.getElementById("authForm");
-const authFullName   = document.getElementById("authFullName");
 const authEmail      = document.getElementById("authEmail");
 const authPassword   = document.getElementById("authPassword");
 const authError      = document.getElementById("authError");
@@ -19,7 +18,6 @@ const authSubmitBtn  = document.getElementById("authSubmitBtn");
 const authToggleBtn  = document.getElementById("authToggleBtn");
 const authToggleText = document.getElementById("authToggleText");
 const loggedInEmail  = document.getElementById("loggedInEmail");
-const fullNameField  = document.getElementById("fullNameField");
 const passwordRules  = document.getElementById("passwordRules");
 
 let isLoginMode = true;
@@ -27,16 +25,14 @@ let isLoginMode = true;
 function getToken() { return localStorage.getItem("token"); }
 function getEmail() { return localStorage.getItem("userEmail"); }
 
-function setSession(token, email, fullName) {
+function setSession(token, email) {
   localStorage.setItem("token", token);
   localStorage.setItem("userEmail", email);
-  localStorage.setItem("userFullName", fullName || email);
 }
 
 function clearSession() {
   localStorage.removeItem("token");
   localStorage.removeItem("userEmail");
-  localStorage.removeItem("userFullName");
 }
 
 function authHeaders() {
@@ -63,12 +59,12 @@ async function apiFetch(url, options = {}) {
 function showApp() {
   authScreen.classList.add("hidden");
   appScreen.classList.remove("hidden");
-  const displayName = localStorage.getItem("userFullName") || getEmail() || "";
+  const displayName = getEmail() || "";
   loggedInEmail.textContent = displayName;
-  // Set avatar initials
+  // Set avatar initials from email
   const avatarBtn = document.getElementById("profileBtn");
   if (avatarBtn) {
-    const initials = displayName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+    const initials = (displayName.split("@")[0] || "?").slice(0, 2).toUpperCase();
     avatarBtn.textContent = initials;
   }
   // Always land on upload mode
@@ -98,10 +94,10 @@ function showAuthScreen() {
     if (el) el.className = "rule-fail";
   });
   if (passwordRules) passwordRules.style.display = "none";
-  if (authFullName) authFullName.value = "";
-  // Reset forgot/reset forms back to login state
+  // Reset all overlay forms back to login state
   document.getElementById("forgotForm")?.classList.remove("visible");
   document.getElementById("resetPassForm")?.classList.remove("visible");
+  document.getElementById("verifyPendingForm")?.classList.remove("visible");
   if (authTitle)  { authTitle.style.display = ""; }
   const sub = document.querySelector(".auth-subtitle");
   if (sub) { sub.style.display = ""; sub.textContent = "Sign in to your account to continue."; }
@@ -118,12 +114,10 @@ function showAuthScreen() {
     authSubmitBtn.textContent = "Login";
     authToggleBtn.textContent = "Register";
     authToggleText.textContent = "Don't have an account?";
-    fullNameField.style.display = "none";
     passwordRules.style.display = "none";
     document.getElementById("confirmPasswordField").style.display = "none";
     document.getElementById("confirmPasswordError").textContent = "";
     document.getElementById("authConfirmPassword").value = "";
-    authFullName.required = false;
   }
 }
 
@@ -143,12 +137,10 @@ authToggleBtn.addEventListener("click", () => {
   const sub = document.querySelector(".auth-subtitle");
   if (sub) sub.textContent = isLoginMode ? "Sign in to your account to continue." : "Fill in your details to get started.";
   authError.textContent = "";
-  fullNameField.style.display  = isLoginMode ? "none" : "block";
   passwordRules.style.display  = isLoginMode ? "none" : "block";
   document.getElementById("confirmPasswordField").style.display = isLoginMode ? "none" : "block";
   document.getElementById("confirmPasswordError").textContent = "";
   document.getElementById("authConfirmPassword").value = "";
-  authFullName.required        = !isLoginMode;
 });
 
 // Live password strength checker (register mode only)
@@ -172,20 +164,14 @@ authForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   authError.textContent = "";
 
-  const email     = authEmail.value.trim();
-  const password  = authPassword.value.trim();
-  const full_name = authFullName.value.trim();
-  const endpoint  = isLoginMode ? "/login" : "/register";
+  const email    = authEmail.value.trim();
+  const password = authPassword.value.trim();
+  const endpoint = isLoginMode ? "/login" : "/register";
 
-  // Validate email has a proper TLD (e.g. user@gmail.com not user@gmail)
+  // Stricter email validation — must have a real TLD (user@gmail not valid)
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-  if (!isLoginMode && !emailRegex.test(email)) {
+  if (!emailRegex.test(email)) {
     authError.textContent = "Please enter a valid email address (e.g. you@example.com).";
-    return;
-  }
-
-  if (!isLoginMode && !full_name) {
-    authError.textContent = "Please enter your full name.";
     return;
   }
 
@@ -200,28 +186,32 @@ authForm.addEventListener("submit", async (e) => {
   }
 
   try {
-    const body = isLoginMode
-      ? { email, password }
-      : { email, password, full_name };
-
     const res = await fetch(`${BACKEND_URL}${endpoint}`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify(body),
+      body:    JSON.stringify({ email, password }),
     });
 
     const data = await res.json();
 
     if (!res.ok) {
-      if (data.detail === "Email already registered") {
-        authError.innerHTML = 'Email already registered. <button type="button" style="background:none;border:none;color:var(--primary);font-weight:600;cursor:pointer;padding:0;font-size:inherit;" onclick="switchToLogin()">Try to login instead.</button>';
+      if (data.detail === "EMAIL_NOT_VERIFIED") {
+        showVerifyPending(email);
+      } else if ((data.detail || "").includes("Email already registered")) {
+        authError.innerHTML = 'Email already registered. <button type="button" style="background:none;border:none;color:var(--primary);font-weight:600;cursor:pointer;padding:0;font-size:inherit;" onclick="switchToLogin()">Try logging in instead.</button>';
       } else {
         authError.textContent = data.detail || "Something went wrong.";
       }
       return;
     }
 
-    setSession(data.token, data.email, data.full_name);
+    // Registration returns requires_verification when email verification is enabled
+    if (data.requires_verification) {
+      showVerifyPending(data.email);
+      return;
+    }
+
+    setSession(data.token, data.email);
     showApp();
   } catch (err) {
     authError.textContent = "Cannot reach the server. Is the backend running?";
@@ -229,17 +219,80 @@ authForm.addEventListener("submit", async (e) => {
 });
 
 function switchToLogin() {
-  if (!isLoginMode) {
-    authToggleBtn.click();
-  }
+  if (!isLoginMode) authToggleBtn.click();
 }
 
-// On page load: check if already logged in
-if (getToken()) {
-  showApp();
-} else {
-  showAuthScreen();
+function showVerifyPending(email) {
+  const authFormEl = document.getElementById("authForm");
+  const authToggleFooter = document.getElementById("authToggleFooter");
+  const forgotLink = document.getElementById("forgotPasswordLink");
+  if (authFormEl) authFormEl.style.display = "none";
+  if (authToggleFooter) authToggleFooter.style.display = "none";
+  if (forgotLink) forgotLink.style.display = "none";
+  if (authTitle) authTitle.style.display = "none";
+  const sub = document.querySelector(".auth-subtitle");
+  if (sub) sub.style.display = "none";
+  const el = document.getElementById("verifyPendingEmail");
+  if (el) el.textContent = email;
+  document.getElementById("verifyPendingForm")?.classList.add("visible");
+  // Store email for resend
+  document.getElementById("verifyPendingForm")._pendingEmail = email;
 }
+
+document.getElementById("backFromVerifyBtn")?.addEventListener("click", () => {
+  showAuthScreen();
+});
+
+document.getElementById("resendVerifyBtn")?.addEventListener("click", async () => {
+  const form = document.getElementById("verifyPendingForm");
+  const email = form?._pendingEmail;
+  const msg = document.getElementById("resendMsg");
+  if (!email) return;
+  try {
+    await fetch(`${BACKEND_URL}/resend-verification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    if (msg) msg.textContent = "Verification email resent. Check your inbox.";
+  } catch (_) {
+    if (msg) msg.textContent = "Failed to resend. Please try again.";
+  }
+});
+
+// On page load: check for verify_token in URL, then check if already logged in
+(async () => {
+  const params = new URLSearchParams(window.location.search);
+  const verifyToken = params.get("verify_token");
+  if (verifyToken) {
+    window.history.replaceState({}, "", window.location.pathname);
+    try {
+      const res = await fetch(`${BACKEND_URL}/verify-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: verifyToken }),
+      });
+      const data = await res.json();
+      if (res.ok && data.token) {
+        setSession(data.token, data.email);
+        showApp();
+        return;
+      } else {
+        showAuthScreen();
+        authError.textContent = data.detail || "Verification link is invalid or expired.";
+        return;
+      }
+    } catch (_) {
+      showAuthScreen();
+      return;
+    }
+  }
+  if (getToken()) {
+    showApp();
+  } else {
+    showAuthScreen();
+  }
+})();
 
 const uploadForm = document.getElementById("uploadForm");
 const builderForm = document.getElementById("builderForm");
@@ -1514,7 +1567,7 @@ window.showProfileView = function () {
   document.getElementById("profileScreen").classList.add("visible");
 
   // Populate avatar and name
-  const name  = localStorage.getItem("userFullName") || getEmail() || "User";
+  const name  = getEmail() || "User";
   const email = getEmail() || "";
   const av = document.getElementById("profileAvatar");
   const nm = document.getElementById("profileName");

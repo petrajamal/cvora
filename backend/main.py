@@ -6,6 +6,8 @@ import os
 import json
 import re
 import time
+import hashlib
+import secrets
 import requests
 from collections import defaultdict
 from datetime import datetime
@@ -208,40 +210,51 @@ FRONTEND_URL   = os.getenv("FRONTEND_URL", "http://127.0.0.1")
 print(f"[STARTUP] RESEND={'set' if RESEND_API_KEY else 'MISSING'} FRONTEND_URL={FRONTEND_URL}", flush=True)
 
 
-def _send_reset_email(to_email: str, raw_token: str):
+def _send_email(to_email: str, subject: str, html: str, label: str = "email"):
     if not RESEND_API_KEY:
-        print("[EMAIL] RESEND_API_KEY not set — skipping.", flush=True)
+        print(f"[EMAIL] RESEND_API_KEY not set — skipping {label}.", flush=True)
         return
-    reset_link = f"{FRONTEND_URL}?token={raw_token}"
+    try:
+        resp = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+            json={"from": "CVora <noreply@cvora.live>", "to": [to_email], "subject": subject, "html": html},
+            timeout=10,
+        )
+        if resp.status_code in (200, 201):
+            print(f"[EMAIL] {label} sent to {to_email}", flush=True)
+        else:
+            print(f"[EMAIL] Resend error {resp.status_code}: {resp.text}", flush=True)
+    except Exception as exc:
+        print(f"[EMAIL] Failed: {exc}", flush=True)
+
+
+def _send_reset_email(to_email: str, raw_token: str):
+    reset_link = f"{FRONTEND_URL}/app.html?token={raw_token}"
     html = f"""
     <div style="font-family:Inter,system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#0F172A;">
-      <div style="margin-bottom:24px;">
-        <span style="background:#4F46E5;color:white;padding:6px 12px;border-radius:8px;font-weight:700;font-size:14px;">CVora</span>
-      </div>
+      <div style="margin-bottom:24px;"><span style="background:#4F46E5;color:white;padding:6px 12px;border-radius:8px;font-weight:700;font-size:14px;">CVora</span></div>
       <h2 style="font-size:20px;font-weight:700;margin:0 0 8px;">Reset your password</h2>
       <p style="color:#475569;margin:0 0 24px;font-size:14px;">Click the button below to set a new password. This link expires in 60 minutes.</p>
       <a href="{reset_link}" style="display:inline-block;background:#4F46E5;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Reset Password</a>
       <p style="color:#94A3B8;margin-top:24px;font-size:12px;">If you didn't request this, you can safely ignore this email.</p>
     </div>
     """
-    try:
-        resp = requests.post(
-            "https://api.resend.com/emails",
-            headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
-            json={
-                "from": "CVora <noreply@cvora.live>",
-                "to": [to_email],
-                "subject": "Reset your CVora password",
-                "html": html,
-            },
-            timeout=10,
-        )
-        if resp.status_code == 200 or resp.status_code == 201:
-            print(f"[EMAIL] Sent to {to_email}", flush=True)
-        else:
-            print(f"[EMAIL] Resend error {resp.status_code}: {resp.text}", flush=True)
-    except Exception as exc:
-        print(f"[EMAIL] Failed: {exc}", flush=True)
+    _send_email(to_email, "Reset your CVora password", html, label="reset")
+
+
+def _send_verification_email(to_email: str, raw_token: str):
+    verify_link = f"{FRONTEND_URL}/app.html?verify_token={raw_token}"
+    html = f"""
+    <div style="font-family:Inter,system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#0F172A;">
+      <div style="margin-bottom:24px;"><span style="background:#4F46E5;color:white;padding:6px 12px;border-radius:8px;font-weight:700;font-size:14px;">CVora</span></div>
+      <h2 style="font-size:20px;font-weight:700;margin:0 0 8px;">Verify your email</h2>
+      <p style="color:#475569;margin:0 0 24px;font-size:14px;">Click the button below to verify your email address and activate your account.</p>
+      <a href="{verify_link}" style="display:inline-block;background:#4F46E5;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Verify Email</a>
+      <p style="color:#94A3B8;margin-top:24px;font-size:12px;">If you didn't create a CVora account, you can safely ignore this email.</p>
+    </div>
+    """
+    _send_email(to_email, "Verify your CVora email", html, label="verification")
 
 
 # ── Auth routes ───────────────────────────────────────────────────────────────
@@ -250,14 +263,9 @@ def _send_reset_email(to_email: str, raw_token: str):
 def register(payload: dict, request: Request):
     rate_limit(f"register:{request.client.host}", max_calls=10, window=300)
 
-    email     = sanitize(payload.get("email") or "", 120).lower()
-    password  = sanitize(payload.get("password") or "", 200)
-    full_name = sanitize(payload.get("full_name") or "", 100)
+    email    = sanitize(payload.get("email") or "", 120).lower()
+    password = sanitize(payload.get("password") or "", 200)
 
-    if not full_name:
-        raise HTTPException(status_code=400, detail="Full name is required")
-    if len(full_name) > 100:
-        raise HTTPException(status_code=400, detail="Full name is too long")
     if not email or not EMAIL_RE.match(email):
         raise HTTPException(status_code=400, detail="Invalid email address")
 
@@ -266,19 +274,27 @@ def register(payload: dict, request: Request):
     db = SessionLocal()
     try:
         if db.query(User).filter(User.email == email).first():
-            raise HTTPException(status_code=409, detail="Email already registered")
+            raise HTTPException(status_code=409, detail="Email already registered. Try logging in instead.")
+
+        raw_token   = secrets.token_urlsafe(32)
+        token_hash  = hashlib.sha256(raw_token.encode()).hexdigest()
 
         user = User(
             id=str(uuid.uuid4()),
             email=email,
             hashed_password=hash_password(password),
-            full_name=full_name,
+            email_verified=DEV_MODE,
+            verification_token_hash=None if DEV_MODE else token_hash,
         )
         db.add(user)
         db.commit()
 
-        token = create_access_token(user.id)
-        return {"token": token, "email": user.email, "full_name": user.full_name}
+        if DEV_MODE:
+            token = create_access_token(user.id)
+            return {"token": token, "email": user.email}
+        else:
+            _send_verification_email(email, raw_token)
+            return {"requires_verification": True, "email": email}
     finally:
         db.close()
 
@@ -299,10 +315,53 @@ def login(payload: dict, request: Request):
         if not user or not verify_password(password, user.hashed_password):
             raise HTTPException(status_code=401, detail="Invalid email or password")
 
+        if not user.email_verified:
+            raise HTTPException(status_code=403, detail="EMAIL_NOT_VERIFIED")
+
         token = create_access_token(user.id)
-        return {"token": token, "email": user.email, "full_name": user.full_name}
+        return {"token": token, "email": user.email}
     finally:
         db.close()
+
+
+@app.post("/verify-email")
+def verify_email(payload: dict):
+    raw_token = sanitize(payload.get("token") or "", 200)
+    if not raw_token:
+        raise HTTPException(status_code=400, detail="Token required")
+
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.verification_token_hash == token_hash).first()
+        if not user:
+            raise HTTPException(status_code=400, detail="Invalid or expired verification link.")
+        user.email_verified = True
+        user.verification_token_hash = None
+        db.commit()
+        token = create_access_token(user.id)
+        return {"token": token, "email": user.email}
+    finally:
+        db.close()
+
+
+@app.post("/resend-verification")
+def resend_verification(payload: dict, request: Request):
+    rate_limit(f"resend:{request.client.host}", max_calls=3, window=300)
+    email = sanitize(payload.get("email") or "", 120).lower()
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == email).first()
+        if user and not user.email_verified:
+            raw_token  = secrets.token_urlsafe(32)
+            token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+            user.verification_token_hash = token_hash
+            db.commit()
+            _send_verification_email(email, raw_token)
+    finally:
+        db.close()
+    return {"ok": True}
 
 
 # ── Forgot / reset password ───────────────────────────────────────────────────
@@ -405,7 +464,6 @@ def get_profile(user_id: str = Depends(get_current_user_id)):
             raise HTTPException(status_code=404, detail="User not found")
         return {
             "email":      user.email,
-            "full_name":  user.full_name,
             "created_at": user.created_at.isoformat() if user.created_at else None,
         }
     finally:

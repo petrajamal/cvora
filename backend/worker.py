@@ -1234,17 +1234,22 @@ def match_jobs(cv_data, jobs, preferences):
     # ── sort all ───────────────────────────────────────────────────────────────
     all_results = sorted(results, key=lambda x: x["match_score"], reverse=True)
 
-    # ── filter: only location is a hard requirement ────────────────────────────
+    # ── primary filter: 3 hard requirements ───────────────────────────────────
     filtered_results = [
         job for job in all_results
-        if job["score_breakdown"]["location_score"] >= 70
+        if job["score_breakdown"]["location_score"]       >= 70
+        and job["score_breakdown"]["experience_score"]    >= 50
+        and job["score_breakdown"]["grad_student_fit_score"] >= 50
     ]
 
-    # ── best-effort fallback ───────────────────────────────────────────────────
-    # If location filter returns nothing, still enforce location — just pick the
-    # top 5 with the best location score, even if it's 0.
+    # ── best-effort fallback: relax experience+fit, keep location strict ───────
     if not filtered_results and all_results:
-        # Still try to return jobs with the best location score
+        filtered_results = [
+            job for job in all_results
+            if job["score_breakdown"]["location_score"] >= 70
+        ]
+    # ── last resort: top 5 overall ─────────────────────────────────────────────
+    if not filtered_results and all_results:
         top5 = all_results[:5]
         for job in top5:
             job["best_effort"] = True
@@ -1350,33 +1355,54 @@ while True:
                 # -------- Feature 1: Upload CV --------
                 print("[CV] Processing uploaded CV...")
 
-                job.status_message = "Extracting text from PDF..."
-                db.commit()
-
-                tmp_pdf = r2.download_to_tempfile(job.file_path, suffix=".pdf")
-                try:
-                    text = extract_text_from_pdf(tmp_pdf)
-                finally:
-                    try: os.remove(tmp_pdf)
-                    except Exception: pass
-                job.extracted_text = text
-
-                structured = extract_basic_info(text)
-                job.structured_data = json.dumps(structured)
-                db.commit()
-
-                print(f"Saved extracted text length: {len(text) if text else 0}")
-
-                if not text:
-                    job.status = "failed_no_text"
-                    job.status_message = "Could not extract text from the PDF. Please check that it is not scanned/image-only."
+                # ── Cache check: reuse extraction from a prior completed job ───
+                cached_job = (
+                    db.query(Job)
+                    .filter(
+                        Job.user_id == job.user_id,
+                        Job.file_path == job.file_path,
+                        Job.id != job.id,
+                        Job.ai_structured_data.isnot(None),
+                    )
+                    .order_by(Job.created_at.desc())
+                    .first()
+                )
+                if cached_job and cached_job.ai_structured_data:
+                    print("[CV] Reusing cached extraction from previous analysis.")
+                    job.extracted_text  = cached_job.extracted_text
+                    job.structured_data = cached_job.structured_data
+                    job.ai_structured_data = cached_job.ai_structured_data
+                    ai_data = json.loads(cached_job.ai_structured_data)
+                    job.status_message = "Using cached CV analysis..."
                     db.commit()
-                    continue
+                else:
+                    job.status_message = "Extracting text from PDF..."
+                    db.commit()
 
-                job.status_message = "Parsing CV with AI..."
-                db.commit()
+                    tmp_pdf = r2.download_to_tempfile(job.file_path, suffix=".pdf")
+                    try:
+                        text = extract_text_from_pdf(tmp_pdf)
+                    finally:
+                        try: os.remove(tmp_pdf)
+                        except Exception: pass
+                    job.extracted_text = text
 
-                ai_data = ai_extract_cv_data(text)
+                    structured = extract_basic_info(text)
+                    job.structured_data = json.dumps(structured)
+                    db.commit()
+
+                    print(f"Saved extracted text length: {len(text) if text else 0}")
+
+                    if not text:
+                        job.status = "failed_no_text"
+                        job.status_message = "Could not extract text from the PDF. Please check that it is not scanned/image-only."
+                        db.commit()
+                        continue
+
+                    job.status_message = "Parsing CV with AI..."
+                    db.commit()
+
+                    ai_data = ai_extract_cv_data(text)
 
                 # Basic CV validity check
                 has_name = bool(ai_data.get("full_name"))
@@ -1446,16 +1472,14 @@ INPUT:
                 _ai_refine_cache[cache_key] = result
                 return result
 
-            job.status_message = "Polishing CV content with AI..."
-            db.commit()
-
-            try:
-                ai_data = refine_cv_content(ai_data)
-            except Exception as refine_error:
-                print(f"[CV] Refinement failed, using original data: {refine_error}")
-
-            # Save final structured data
-            job.ai_structured_data = json.dumps(ai_data)
+            if not job.ai_structured_data:
+                job.status_message = "Polishing CV content with AI..."
+                db.commit()
+                try:
+                    ai_data = refine_cv_content(ai_data)
+                except Exception as refine_error:
+                    print(f"[CV] Refinement failed, using original data: {refine_error}")
+                job.ai_structured_data = json.dumps(ai_data)
 
             # ================================
             # GENERATE LATEX FOR FEATURE 2

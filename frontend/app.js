@@ -1790,7 +1790,7 @@ window.startRename = function (jobId, btn) {
       const res = await apiFetch(`${BACKEND_URL}/job/${jobId}/rename`, {
         method: "PATCH",
         headers: authHeaders(),
-        body: JSON.stringify({ display_name: newName }),
+        body: JSON.stringify({ name: newName }),
       });
       if (!res.ok) throw new Error();
       nameEl.textContent = newName;

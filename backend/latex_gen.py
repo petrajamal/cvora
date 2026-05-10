@@ -185,13 +185,16 @@ def generate_latex_cv(profile: dict) -> str:
         field       = latex_escape(edu.get("field_of_study") or "")
         start       = latex_escape(edu.get("start_date", ""))
         end         = latex_escape(edu.get("end_date", ""))
-        gpa         = latex_escape(edu.get("gpa") or "")
+        gpa_raw     = (edu.get("gpa") or "").strip()
+        # Strip any "GPA: " prefix already baked in by the frontend before re-labelling
+        gpa_display = gpa_raw[5:].strip() if gpa_raw.upper().startswith("GPA:") else gpa_raw
+        gpa_display = latex_escape(gpa_display)
         desc        = ensure_list(edu.get("description") or edu.get("details"))
 
         degree_line = " -- ".join(p for p in [degree, field] if p)
         extras = []
-        if gpa:
-            extras.append(f"GPA: {gpa}")
+        if gpa_display:
+            extras.append(f"GPA: {gpa_display}")
         sep = " $\\cdot$ "
         subtitle = degree_line + (f"{sep}{sep.join(extras)}" if extras else "")
 
@@ -468,7 +471,6 @@ def generate_latex_cv(profile: dict) -> str:
 \\vspace{{2pt}}
 
 {summary_section}
-{skills_section}
 {education_section}
 {experience_section}
 {projects_section}
@@ -476,6 +478,7 @@ def generate_latex_cv(profile: dict) -> str:
 {certifications_section}
 {awards_section}
 {languages_section}
+{skills_section}
 
 \\end{{document}}
 """

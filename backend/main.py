@@ -1133,58 +1133,92 @@ async def auto_enhance_cv_descriptions(profile: dict) -> dict:
 
 async def apply_line_rules(profile: dict) -> dict:
     """
-    Rule 1 — cap each entry's bullet content at 6 printed lines total.
-             Trailing bullets are dropped until the entry fits.
+    Rule 1 — if an entry's bullets exceed 6 printed lines total, ask GPT to
+             combine and summarise them into a condensed list that fits within
+             6 lines while preserving all key information.
     Rule 2 — if a bullet ends with exactly 1 word on its last line (widow),
-             ask GPT to shorten it by 1 word. Repeated up to 3 times per
-             bullet in case the first trim still leaves a widow.
+             ask GPT to shorten it by 1 word. Repeated up to 3 passes.
     """
     import copy
     from openai import AsyncOpenAI
 
-    MAX_ENTRY_LINES = 10
+    MAX_ENTRY_LINES = 6
+    SECTIONS = ("work_experience", "education", "projects", "extracurriculars", "awards")
 
     p = copy.deepcopy(profile)
 
-    # ── Rule 1: trim bullets until entry fits ────────────────────────────────
-    def cap_entry(desc):
-        if not isinstance(desc, list):
-            return desc
-        result, total = [], 0
-        for bullet in desc:
-            lines = estimate_bullet_lines(bullet)
-            if total + lines <= MAX_ENTRY_LINES:
-                result.append(bullet)
-                total += lines
-            else:
-                break
-        return result
-
-    for section in ("work_experience", "education", "projects", "extracurriculars", "awards"):
-        for entry in (p.get(section) or []):
-            if entry.get("description"):
-                entry["description"] = cap_entry(entry["description"])
-
-    # ── Rule 2: fix widow words via GPT (up to 3 passes) ────────────────────
     if not os.getenv("OPENAI_API_KEY"):
         return p
 
     client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+    # ── Rule 1: summarise overlong entries ───────────────────────────────────
+    to_summarise = []  # [(bullets_list, setter)]
+    for section in SECTIONS:
+        for entry in (p.get(section) or []):
+            desc = entry.get("description")
+            if not isinstance(desc, list) or not desc:
+                continue
+            total = sum(estimate_bullet_lines(b) for b in desc)
+            if total > MAX_ENTRY_LINES:
+                to_summarise.append(
+                    (list(desc), lambda v, e=entry: e.__setitem__("description", v))
+                )
+
+    if to_summarise:
+        sections_text = "\n\n".join(
+            "ENTRY {}:\n{}".format(i + 1, "\n".join(f"- {b}" for b in bullets))
+            for i, (bullets, _) in enumerate(to_summarise)
+        )
+        prompt = (
+            "The bullet lists below are from CV entries and are too long to fit on one page. "
+            "For each ENTRY, combine and condense the bullets into a shorter list that:\n"
+            "- Preserves all key responsibilities and achievements from the original\n"
+            "- Keeps each bullet to ~100 characters so it prints on 1 line (2 lines max per bullet)\n"
+            "- Keeps the total printed lines for that entry to {} or fewer\n"
+            "- Uses strong action verbs; does not invent new information\n\n"
+            "Return in exactly this format (no extra text):\n"
+            "ENTRY 1:\n- bullet\n- bullet\n\nENTRY 2:\n- bullet\n\n"
+            "{}"
+        ).format(MAX_ENTRY_LINES, sections_text)
+
+        try:
+            resp = await client.responses.create(model="gpt-4o-mini", input=prompt)
+            current_idx = None
+            current_bullets: list[str] = []
+
+            def _flush():
+                if current_idx is not None and 0 <= current_idx < len(to_summarise):
+                    if current_bullets:
+                        to_summarise[current_idx][1](list(current_bullets))
+
+            for line in resp.output_text.strip().splitlines():
+                line = line.strip()
+                m = re.match(r"^ENTRY\s+(\d+):?$", line, re.IGNORECASE)
+                if m:
+                    _flush()
+                    current_idx = int(m.group(1)) - 1
+                    current_bullets = []
+                elif line.startswith(("-", "•")) and current_idx is not None:
+                    bullet = re.sub(r"^[-•]\s*", "", line).strip()
+                    if bullet:
+                        current_bullets.append(bullet)
+            _flush()
+        except Exception:
+            pass  # keep originals on failure
+
+    # ── Rule 2: fix widow words (up to 3 passes) ─────────────────────────────
     for _pass in range(3):
-        # Collect all bullets that still have a widow
-        widow_items = []  # [(text, setter)]
+        widow_items: list[tuple] = []
 
-        def _collect_widows(desc, setter_list):
-            if not isinstance(desc, list):
-                return
-            for i, bullet in enumerate(desc):
-                if isinstance(bullet, str) and last_line_word_count(bullet) == 1:
-                    setter_list.append((bullet, lambda v, d=desc, j=i: d.__setitem__(j, v)))
-
-        for section in ("work_experience", "education", "projects", "extracurriculars", "awards"):
+        for section in SECTIONS:
             for entry in (p.get(section) or []):
-                _collect_widows(entry.get("description") or [], widow_items)
+                desc = entry.get("description") or []
+                for i, bullet in enumerate(desc):
+                    if isinstance(bullet, str) and last_line_word_count(bullet) == 1:
+                        widow_items.append(
+                            (bullet, lambda v, d=desc, j=i: d.__setitem__(j, v))
+                        )
 
         if not widow_items:
             break
@@ -1210,7 +1244,7 @@ async def apply_line_rules(profile: dict) -> dict:
                 if 0 <= idx < len(widow_items):
                     widow_items[idx][1](re.sub(r"\s+", " ", text).strip())
         except Exception:
-            break  # keep what we have on failure
+            break
 
     return p
 

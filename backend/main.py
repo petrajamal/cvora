@@ -1024,8 +1024,29 @@ def view_cv(job_id: str, user_id: str = Depends(get_current_user_id)):
         db.close()
 
 
+_JUNK_PATTERN = re.compile(
+    r"^[\s.]*$"                      # blank or dots only
+    r"|(\.\s*){2,}"                  # two or more consecutive dots / ". . ."
+    r"|\b(slayed|aaa+|test|xxx+|placeholder|lorem)\b",
+    re.IGNORECASE,
+)
+
+def _needs_enhancement(text: str) -> bool:
+    """True only for bullets that are too short or clearly junk."""
+    words = text.split()
+    if len(words) < 6:
+        return True
+    if _JUNK_PATTERN.search(text):
+        return True
+    return False
+
+
 async def auto_enhance_cv_descriptions(profile: dict) -> dict:
-    """Batch-enhance all CV description fields before PDF generation."""
+    """
+    Fix only bullets that are fewer than 6 words or clearly junk/placeholder.
+    All other text is passed through unchanged to prevent hallucination on
+    repeated saves.
+    """
     import copy
     from openai import AsyncOpenAI
 
@@ -1040,11 +1061,11 @@ async def auto_enhance_cv_descriptions(profile: dict) -> dict:
             return
         for i in range(len(desc_list)):
             b = desc_list[i]
-            if isinstance(b, str) and b.strip():
+            if isinstance(b, str) and b.strip() and _needs_enhancement(b):
                 items.append((b, ctx, lambda v, d=desc_list, j=i: d.__setitem__(j, v)))
 
     summary = (p.get("summary") or "").strip()
-    if summary:
+    if summary and _needs_enhancement(summary):
         name = p.get("full_name", "applicant")
         items.append((summary, f"Professional summary for {name}",
                        lambda v: p.update({"summary": v})))
@@ -1073,32 +1094,37 @@ async def auto_enhance_cv_descriptions(profile: dict) -> dict:
         for i, (text, ctx, _) in enumerate(items)
     )
     prompt = (
-        "You are polishing a CV document. For each numbered description, return a cleaned version.\n"
-        "Rules (apply in order):\n"
-        "1. Fix all grammar, spelling, and punctuation.\n"
-        "2. Remove extra whitespace, ellipses used as filler ('...', '. . .'), and placeholder-style text.\n"
-        "3. If the text is nonsensical, incoherent, a single slang word, or clearly a test/placeholder "
-        "(e.g. 'slayed', 'test', '...', 'aaa'), rewrite it as a short professional bullet using the context provided. "
-        "Do not invent specific metrics or facts — keep it generic but professional.\n"
-        "4. Use strong action verbs.\n"
-        "5. If fewer than 10 words (after cleaning): expand slightly using the context — do NOT invent unrelated facts.\n"
-        "6. If more than 40 words: condense to approximately 40 words (about 3 printed lines), keeping all key information.\n"
-        "7. If already 10–40 words with good grammar: minimal changes only.\n"
-        "8. Never add facts not stated or strongly implied by the user.\n"
-        "Return ONLY the numbered items in the same order, one per line. Format exactly:\n"
-        "1. improved text\n2. improved text\n\n"
+        "You are fixing CV bullet points. Each numbered item below was flagged because it is "
+        "either fewer than 6 words or clearly nonsensical/placeholder text.\n\n"
+        "Rules:\n"
+        "1. Fix grammar, spelling, and punctuation.\n"
+        "2. Remove filler (ellipses, '. . .', placeholder phrases).\n"
+        "3. If the text is nonsensical, a single slang word, or an obvious placeholder "
+        "(e.g. 'slayed', 'aaa', '...', 'test'), replace it with one short professional bullet "
+        "appropriate for the given context. Do NOT invent specific metrics or facts.\n"
+        "4. If the text is fewer than 6 words but otherwise meaningful, expand it slightly "
+        "using only information implied by the context. Do NOT add unrelated facts.\n"
+        "5. NEVER add new bullet points. Return exactly one line per numbered item.\n"
+        "6. For any item that is already clear and professional (even if short), "
+        "return it with only minimal grammar fixes.\n\n"
+        "Return ONLY the numbered items in the same order, one per line:\n"
+        "1. fixed text\n2. fixed text\n\n"
         + entries
     )
 
     try:
         client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         resp = await client.responses.create(model="gpt-4o-mini", input=prompt)
-        for line in re.split(r"\n(?=\d+\.)", resp.output_text.strip()):
-            m = re.match(r"^(\d+)\.\s+(.*)", line.strip(), re.DOTALL)
-            if m:
-                idx = int(m.group(1)) - 1
-                if 0 <= idx < len(items):
-                    items[idx][2](m.group(2).strip())
+        # Robust parser: findall captures multi-line responses without index shifting
+        for num_str, text in re.findall(
+            r"^(\d+)\.\s+(.*?)(?=\n\d+\.|\Z)",
+            resp.output_text.strip(),
+            re.DOTALL | re.MULTILINE,
+        ):
+            idx = int(num_str) - 1
+            if 0 <= idx < len(items):
+                # Collapse any AI-introduced newlines within a single item to a space
+                items[idx][2](re.sub(r"\s+", " ", text).strip())
     except Exception:
         return profile  # fall back to original on any failure
 

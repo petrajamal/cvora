@@ -1336,17 +1336,39 @@ async def preview_cv(
     rate_limit(f"preview:{user_id}", max_calls=60, window=3600)
 
     candidate_profile = payload.get("candidate_profile")
+    job_id_to_update  = payload.get("job_id")  # present when editing a saved CV
     if not candidate_profile:
         raise HTTPException(status_code=400, detail="Missing candidate_profile")
 
     enhanced_profile = await auto_enhance_cv_descriptions(candidate_profile)
 
     try:
-        _, pdf_bytes = await build_one_page_cv(enhanced_profile)
+        latex_source, pdf_bytes = await build_one_page_cv(enhanced_profile)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Preview generation failed: {exc}")
+
+    # If editing an existing CV, persist the compiled result so downloads
+    # always reflect the latest preview without a separate Save action.
+    if job_id_to_update:
+        db = SessionLocal()
+        try:
+            job = db.query(Job).filter(
+                Job.id == job_id_to_update, Job.user_id == user_id
+            ).first()
+            if job:
+                if pdf_bytes:
+                    pdf_path = f"generated/{job_id_to_update}.pdf"
+                    r2.upload_bytes(pdf_path, pdf_bytes, content_type="application/pdf")
+                    job.generated_pdf_path = pdf_path
+                job.generated_latex    = latex_source
+                job.candidate_profile  = json.dumps(candidate_profile)
+                db.commit()
+        except Exception:
+            pass  # preview still works even if the DB write fails
+        finally:
+            db.close()
 
     return Response(
         content=pdf_bytes,

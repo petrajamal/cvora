@@ -1222,7 +1222,7 @@ async function updateCvPreview() {
     const res = await apiFetch(`${BACKEND_URL}/preview-cv`, {
       method:  "POST",
       headers: authHeaders(),
-      body:    JSON.stringify({ candidate_profile }),
+      body:    JSON.stringify({ candidate_profile, job_id: _builderSavedJobId || null }),
     });
 
     if (!res.ok) {
@@ -2499,8 +2499,19 @@ document.getElementById("saveCvBtn")?.addEventListener("click", async () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Update failed");
-      // Refresh the preview so the iframe matches what was actually saved
-      await updateCvPreview();
+      // Refresh the iframe from the already-saved PDF — no recompile needed
+      const viewRes = await apiFetch(`${BACKEND_URL}/view-cv/${_builderSavedJobId}`, { headers: authHeaders() });
+      if (viewRes.ok) {
+        const blob = await viewRes.blob();
+        if (_previewBlobUrl) URL.revokeObjectURL(_previewBlobUrl);
+        _previewBlobUrl = URL.createObjectURL(blob);
+        previewFrame.src = _previewBlobUrl + "#toolbar=0&navpanes=0&scrollbar=0&view=FitH";
+        const _ph = document.getElementById("previewPlaceholder");
+        if (_ph) _ph.style.display = "none";
+        previewFrame.classList.remove("hidden");
+        document.getElementById("previewFrameWrap")?.classList.remove("hidden");
+      }
+      previewStatus.innerHTML = `<span class="preview-status-ok">CV saved</span>`;
     } catch (err) {
       previewStatus.innerHTML = `<span class="preview-status-err">${escapeHtml(err.message || "Update failed")}</span>`;
     } finally {

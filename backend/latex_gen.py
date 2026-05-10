@@ -203,16 +203,26 @@ def generate_latex_cv(profile: dict) -> str:
     allow_two_pages = (_years_exp >= 7 and len(work_experience) >= 3)
     max_bullets = None if allow_two_pages else 3
 
+    # ── Section label helper (custom names from UI) ────────────────────────────
+    _sl = profile.get("section_labels") or {}
+
+    def sec(key, default):
+        custom = (_sl.get(key) or "").strip()
+        return latex_escape(custom if custom else default)
+
     # ── inner helpers ──────────────────────────────────────────────────────────
 
     def entry_header(left_bold, right, subtitle=""):
+        # \\[-2pt] on the title line pulls the subtitle up tight to the title.
+        # The subtitle ends with plain \\ so the following \vspace{6pt} gives
+        # full inter-entry separation without being cancelled by a negative skip.
         if right:
-            first_line = f"\\textbf{{{left_bold}}} \\hfill \\small {right} \\\\"
+            first_line = f"\\textbf{{{left_bold}}} \\hfill \\small {right} \\\\[-2pt]"
         else:
-            first_line = f"\\textbf{{{left_bold}}} \\\\"
+            first_line = f"\\textbf{{{left_bold}}} \\\\[-2pt]"
         lines = [first_line]
         if subtitle:
-            lines.append(f"\\small\\textit{{{subtitle}}} \\\\[-2pt]")
+            lines.append(f"\\small\\textit{{{subtitle}}} \\\\")
         return "\n".join(lines)
 
     def date_range(start, end, open_ended=False):
@@ -244,7 +254,7 @@ def generate_latex_cv(profile: dict) -> str:
 
         education_blocks.append(
             entry_header(institution, date_range(start, end, open_ended=True), subtitle)
-            + (render_bullets(desc, max_bullets) if desc else "\n\\vspace{3pt}\n")
+            + (render_bullets(desc, max_bullets) if desc else "\n\\vspace{6pt}\n")
         )
 
     # ── Work Experience ────────────────────────────────────────────────────────
@@ -265,7 +275,7 @@ def generate_latex_cv(profile: dict) -> str:
         experience_blocks.append(
             entry_header(position or org, date_range(start, end, open_ended=True), subtitle)
             + render_bullets(bullets, max_bullets)
-            + "\n\\vspace{3pt}\n"
+            + "\n\\vspace{6pt}\n"
         )
 
     # ── Projects ───────────────────────────────────────────────────────────────
@@ -295,7 +305,7 @@ def generate_latex_cv(profile: dict) -> str:
             entry_header(title, date_str, subtitle)
             + link_str
             + render_bullets(desc, max_bullets)
-            + "\n\\vspace{3pt}\n"
+            + "\n\\vspace{6pt}\n"
         )
 
     # ── Extracurriculars ───────────────────────────────────────────────────────
@@ -313,7 +323,7 @@ def generate_latex_cv(profile: dict) -> str:
         extracurricular_blocks.append(
             entry_header(title, date, subtitle)
             + render_bullets(desc, max_bullets)
-            + "\n\\vspace{3pt}\n"
+            + "\n\\vspace{6pt}\n"
         )
 
     # ── Certifications ─────────────────────────────────────────────────────────
@@ -391,7 +401,7 @@ def generate_latex_cv(profile: dict) -> str:
         if rows_latex.endswith("\\\\"):
             rows_latex = rows_latex[:-2]
         skills_section = (
-            "\\section*{Skills}\n"
+            f"\\section*{{{sec('skills', 'Skills')}}}\n"
             "\\begin{tabular}{@{}p{2.2cm}p{\\dimexpr\\linewidth-2.2cm\\relax}@{}}\n"
             + rows_latex
             + "\n\\end{tabular}\n\\par\\vspace{6pt}\n"
@@ -445,42 +455,45 @@ def generate_latex_cv(profile: dict) -> str:
     summary_section = f"\\section*{{Summary}}\n\\small {summary}\n" if summary else ""
 
     education_section = (
-        "\\section*{Education}\n" + "".join(education_blocks)
+        f"\\section*{{{sec('education', 'Education')}}}\n" + "".join(education_blocks)
     ) if education_blocks else ""
 
     experience_section = (
-        "\\section*{Experience}\n" + "".join(experience_blocks)
+        f"\\section*{{{sec('experience', 'Work Experience')}}}\n" + "".join(experience_blocks)
     ) if experience_blocks else ""
 
     projects_section = (
-        "\\section*{Projects}\n" + "".join(project_blocks)
+        f"\\section*{{{sec('projects', 'Projects')}}}\n" + "".join(project_blocks)
     ) if project_blocks else ""
 
+    _extracurricular_label = sec("extracurriculars", "Extracurricular Activities & Leadership")
     extracurricular_section = (
-        "\\section*{Extracurricular Activities \\& Leadership}\n"
+        f"\\section*{{{_extracurricular_label}}}\n"
         + "".join(extracurricular_blocks)
     ) if extracurricular_blocks else ""
 
     certifications_section = ""
     if certification_lines:
         certifications_section = (
-            "\\section*{Certifications}\n\\begin{itemize}\n"
+            f"\\section*{{{sec('certifications', 'Certifications')}}}\n\\begin{{itemize}}\n"
             + "\n".join(f"  \\item {line}" for line in certification_lines)
             + "\n\\end{itemize}\n"
         )
 
+    _awards_label = sec("awards", "Awards & Achievements")
     awards_section = ""
     if award_lines:
         awards_section = (
-            "\\section*{Awards \\& Achievements}\n\\begin{itemize}\n"
+            f"\\section*{{{_awards_label}}}\n\\begin{{itemize}}\n"
             + "\n".join(f"  \\item {line}" for line in award_lines)
             + "\n\\end{itemize}\n"
         )
 
     languages_section = (
-        "\\section*{Languages}\n"
+        f"\\section*{{{sec('languages', 'Languages')}}}\n"
         + " $\\cdot$ ".join(language_lines) + "\n"
     ) if language_lines else ""
+
 
     # ── Assemble document ──────────────────────────────────────────────────────
     latex = f"""

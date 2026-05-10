@@ -573,6 +573,41 @@
       box-shadow: none;
     }
 
+    /* Add-entry button (below entries list) */
+    .add-entry-btn {
+      display: block;
+      width: 100%;
+      padding: 7px 12px;
+      font-size: 12px;
+      background: transparent;
+      color: var(--primary);
+      border: 1.5px dashed var(--primary-border);
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      cursor: pointer;
+      margin: 4px 0 20px;
+      text-align: center;
+      transition: background 0.15s;
+    }
+    .add-entry-btn:hover { background: var(--primary-light); box-shadow: none; }
+
+    /* Section rename UI */
+    .section-h3-wrap { display: flex; align-items: center; gap: 6px; }
+    .section-rename-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-muted); font-size: 13px; padding: 0 2px;
+      line-height: 1; opacity: 0.6; flex-shrink: 0;
+    }
+    .section-rename-btn:hover { opacity: 1; color: var(--primary); box-shadow: none; }
+    .section-custom-label {
+      font-size: 11px; font-style: italic; color: var(--text-secondary);
+      margin: -8px 0 8px; display: flex; align-items: center; gap: 4px;
+    }
+    .section-rename-input {
+      font-size: 12px; padding: 3px 7px; border-radius: var(--radius-sm);
+      border: 1.5px solid var(--primary); outline: none; width: 180px;
+    }
+
     /* ════════════════════════════════════════════
        ENTRY CARDS
     ════════════════════════════════════════════ */
@@ -1815,7 +1850,7 @@
             <input id="location" type="text" placeholder="City, Country" maxlength="100" />
 
             <label>Professional Summary (optional)</label>
-            <textarea id="summary" placeholder="A short professional summary..." rows="4" maxlength="300" data-charcounter></textarea>
+            <textarea id="summary" placeholder="A short professional summary..." rows="4" maxlength="2000" data-wordcounter></textarea>
             <div class="char-counter-row"><span class="char-counter-display" data-for="summary"></span></div>
 
             <h3>Links</h3>
@@ -1825,28 +1860,22 @@
             </div>
             <div id="linksEntries"></div>
 
-            <h3>Education</h3>
-            <div class="subsection-header">
-              <span>Add one or more entries</span>
-              <button type="button" id="addEducationBtn">+ Add Education</button>
-            </div>
+            <h3 data-section-key="education">Education</h3>
+            <div class="subsection-header"><span>Add one or more entries</span></div>
             <div id="educationEntries"></div>
+            <button type="button" id="addEducationBtn" class="add-entry-btn">+ Add Education</button>
 
-            <h3>Work Experience</h3>
-            <div class="subsection-header">
-              <span>Add if applicable</span>
-              <button type="button" id="addExperienceBtn">+ Add Experience</button>
-            </div>
+            <h3 data-section-key="experience">Work Experience</h3>
+            <div class="subsection-header"><span>Add if applicable</span></div>
             <div id="experienceEntries"></div>
+            <button type="button" id="addExperienceBtn" class="add-entry-btn">+ Add Experience</button>
 
-            <h3>Projects</h3>
-            <div class="subsection-header">
-              <span>Add if applicable</span>
-              <button type="button" id="addProjectBtn">+ Add Project</button>
-            </div>
+            <h3 data-section-key="projects">Projects</h3>
+            <div class="subsection-header"><span>Add if applicable</span></div>
             <div id="projectEntries"></div>
+            <button type="button" id="addProjectBtn" class="add-entry-btn">+ Add Project</button>
 
-            <h3>Skills</h3>
+            <h3 data-section-key="skills">Skills</h3>
 
             <label>Technical Skills</label>
             <input id="technicalSkillInput" placeholder="Type skill and press Enter" />
@@ -1860,33 +1889,25 @@
             <input id="softSkillInput" placeholder="Type soft skill and press Enter" />
             <div id="softSkillsContainer"></div>
 
-            <h3>Extracurricular Activities &amp; Leadership</h3>
-            <div class="subsection-header">
-              <span>Add if applicable</span>
-              <button type="button" id="addExtracurricularBtn">+ Add Extracurricular</button>
-            </div>
+            <h3 data-section-key="extracurriculars">Extracurricular Activities &amp; Leadership</h3>
+            <div class="subsection-header"><span>Add if applicable</span></div>
             <div id="extracurricularEntries"></div>
+            <button type="button" id="addExtracurricularBtn" class="add-entry-btn">+ Add Extracurricular</button>
 
-            <h3>Certifications</h3>
-            <div class="subsection-header">
-              <span>Add if applicable</span>
-              <button type="button" id="addCertificationBtn">+ Add Certification</button>
-            </div>
+            <h3 data-section-key="certifications">Certifications</h3>
+            <div class="subsection-header"><span>Add if applicable</span></div>
             <div id="certificationEntries"></div>
+            <button type="button" id="addCertificationBtn" class="add-entry-btn">+ Add Certification</button>
 
-            <h3>Awards &amp; Achievements</h3>
-            <div class="subsection-header">
-              <span>Add if applicable</span>
-              <button type="button" id="addAwardBtn">+ Add Award</button>
-            </div>
+            <h3 data-section-key="awards">Awards &amp; Achievements</h3>
+            <div class="subsection-header"><span>Add if applicable</span></div>
             <div id="awardEntries"></div>
+            <button type="button" id="addAwardBtn" class="add-entry-btn">+ Add Award</button>
 
-            <h3>Languages</h3>
-            <div class="subsection-header">
-              <span>Add if applicable</span>
-              <button type="button" id="addLanguageBtn">+ Add Language</button>
-            </div>
+            <h3 data-section-key="languages">Languages</h3>
+            <div class="subsection-header"><span>Add if applicable</span></div>
             <div id="languageEntries"></div>
+            <button type="button" id="addLanguageBtn" class="add-entry-btn">+ Add Language</button>
 
             <h3>Job Search Preferences</h3>
 

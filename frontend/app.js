@@ -318,6 +318,113 @@ const technicalSkills = [];
 const toolsSkills = [];
 const softSkills = [];
 
+// Section label customisation state
+const _sectionLabelDefaults = {
+  education:        "Education",
+  experience:       "Work Experience",
+  projects:         "Projects",
+  skills:           "Skills",
+  extracurriculars: "Extracurricular Activities & Leadership",
+  certifications:   "Certifications",
+  awards:           "Awards & Achievements",
+  languages:        "Languages",
+};
+let sectionLabels = {};  // only stores overrides
+
+function setupSectionRenames() {
+  document.querySelectorAll("h3[data-section-key]").forEach(h3 => {
+    const key = h3.dataset.sectionKey;
+    const defaultLabel = _sectionLabelDefaults[key] || h3.textContent.trim();
+
+    // Wrap h3 content in a flex span
+    const wrap = document.createElement("span");
+    wrap.className = "section-h3-wrap";
+    wrap.textContent = h3.textContent;
+    h3.textContent = "";
+    h3.appendChild(wrap);
+
+    const penBtn = document.createElement("button");
+    penBtn.type = "button";
+    penBtn.className = "section-rename-btn";
+    penBtn.title = "Rename this section in the PDF";
+    penBtn.textContent = "✎";
+    wrap.appendChild(penBtn);
+
+    // Label shown below h3 when renamed
+    const labelDiv = document.createElement("div");
+    labelDiv.className = "section-custom-label";
+    labelDiv.style.display = "none";
+    h3.insertAdjacentElement("afterend", labelDiv);
+
+    function renderLabel() {
+      const custom = sectionLabels[key];
+      if (custom && custom !== defaultLabel) {
+        labelDiv.style.display = "";
+        labelDiv.innerHTML = `"${custom}" <button type="button" class="section-rename-btn" title="Edit section name">✎</button>`;
+        labelDiv.querySelector(".section-rename-btn").addEventListener("click", startEdit);
+      } else {
+        labelDiv.style.display = "none";
+      }
+    }
+
+    function startEdit() {
+      const current = sectionLabels[key] || defaultLabel;
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.className = "section-rename-input";
+      inp.value = current;
+      inp.maxLength = 80;
+      labelDiv.style.display = "";
+      labelDiv.innerHTML = "";
+      labelDiv.appendChild(inp);
+      inp.focus();
+      inp.select();
+
+      function save() {
+        const val = inp.value.trim();
+        if (val && val !== defaultLabel) {
+          sectionLabels[key] = val;
+        } else {
+          delete sectionLabels[key];
+        }
+        renderLabel();
+      }
+      inp.addEventListener("blur", save);
+      inp.addEventListener("keydown", e => {
+        if (e.key === "Enter") { e.preventDefault(); inp.blur(); }
+        if (e.key === "Escape") { inp.value = sectionLabels[key] || defaultLabel; inp.blur(); }
+      });
+    }
+
+    penBtn.addEventListener("click", startEdit);
+    renderLabel();
+  });
+}
+
+function resetSectionLabels(incoming = {}) {
+  sectionLabels = {};
+  Object.assign(sectionLabels, incoming);
+  // Re-render all label divs
+  document.querySelectorAll("h3[data-section-key]").forEach(h3 => {
+    const key = h3.dataset.sectionKey;
+    const defaultLabel = _sectionLabelDefaults[key] || "";
+    const labelDiv = h3.nextElementSibling?.classList?.contains("section-custom-label")
+      ? h3.nextElementSibling : null;
+    if (!labelDiv) return;
+    const custom = sectionLabels[key];
+    if (custom && custom !== defaultLabel) {
+      labelDiv.style.display = "";
+      labelDiv.innerHTML = `"${custom}" <button type="button" class="section-rename-btn" title="Edit section name">✎</button>`;
+      labelDiv.querySelector(".section-rename-btn").addEventListener("click", () => {
+        // Re-trigger start edit by clicking the h3 pen
+        h3.querySelector(".section-rename-btn")?.click();
+      });
+    } else {
+      labelDiv.style.display = "none";
+    }
+  });
+}
+
 window.showUpload = function () {
   uploadSection.classList.remove("hidden");
   builderSection.classList.add("hidden");
@@ -386,6 +493,34 @@ function attachCharCounter(textarea, max) {
       span.className = "char-counter-display over";
     } else if (len > max - 40) {
       span.textContent = `${max - len} remaining`;
+      span.className = "char-counter-display warn";
+    } else {
+      span.textContent = "";
+      span.className = "char-counter-display";
+    }
+  }
+  textarea.addEventListener("input", update);
+  update();
+}
+
+function attachWordCounter(textarea, maxWords) {
+  const row = document.createElement("div");
+  row.className = "char-counter-row";
+  const span = document.createElement("span");
+  span.className = "char-counter-display";
+  row.appendChild(span);
+  textarea.parentNode.insertBefore(row, textarea.nextSibling);
+  function countWords(text) {
+    return text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
+  }
+  function update() {
+    const words = countWords(textarea.value);
+    const over = words - maxWords;
+    if (over > 0) {
+      span.textContent = `${over} word${over > 1 ? "s" : ""} over ${maxWords}-word limit`;
+      span.className = "char-counter-display over";
+    } else if (words > maxWords - 20) {
+      span.textContent = `${maxWords - words} word${maxWords - words !== 1 ? "s" : ""} remaining`;
       span.className = "char-counter-display warn";
     } else {
       span.textContent = "";
@@ -538,12 +673,12 @@ function addEducationEntry() {
     </div>
 
     <label>Description (optional)</label>
-    <textarea class="education-description" rows="3" maxlength="300"
+    <textarea class="education-description" rows="3" maxlength="2000"
       placeholder="Notable coursework, achievements, thesis — one bullet per line"></textarea>
   `));
   const card = container.lastElementChild;
   attachRemoveHandlers("educationEntries");
-  attachCharCounter(card.querySelector(".education-description"), 300);
+  attachWordCounter(card.querySelector(".education-description"), 200);
 
   // Degree "Other" toggle
   const degSel = card.querySelector(".education-degree-select");
@@ -593,12 +728,12 @@ function addExperienceEntry() {
     </div>
     <input class="experience-end" type="month" />
     <input class="experience-location" placeholder="Location (optional)" maxlength="100" />
-    <textarea class="experience-description" rows="4" maxlength="300"
+    <textarea class="experience-description" rows="4" maxlength="2000"
       placeholder="Responsibilities / achievements — one bullet per line *" required></textarea>
   `));
   const card = container.lastElementChild;
   attachRemoveHandlers("experienceEntries");
-  attachCharCounter(card.querySelector(".experience-description"), 300);
+  attachWordCounter(card.querySelector(".experience-description"), 200);
 
   // "Currently working here" disables end date
   const cwCb   = card.querySelector(".experience-currently-working");
@@ -626,12 +761,12 @@ function addProjectEntry() {
       <input class="project-link" type="url" placeholder="https://…" maxlength="500"
              style="margin-bottom:12px;" />
     </div>
-    <textarea class="project-description" rows="4" maxlength="300"
+    <textarea class="project-description" rows="4" maxlength="2000"
       placeholder="Description bullets — one per line *" required></textarea>
   `));
   const card = container.lastElementChild;
   attachRemoveHandlers("projectEntries");
-  attachCharCounter(card.querySelector(".project-description"), 300);
+  attachWordCounter(card.querySelector(".project-description"), 200);
 
   // URL toggle button + length validator
   const addBtn = card.querySelector(".add-url-btn");
@@ -653,12 +788,12 @@ function addExtracurricularEntry() {
       <input class="extracurricular-organization" placeholder="Organization *" maxlength="200" required />
       <label>Date (optional)</label>
       <input class="extracurricular-date" type="month" />
-      <textarea class="extracurricular-description" rows="4" maxlength="300" placeholder="Description (optional). Separate bullets with a new line."></textarea>
+      <textarea class="extracurricular-description" rows="4" maxlength="2000" placeholder="Description (optional). Separate bullets with a new line."></textarea>
     `)
   );
   const card = container.lastElementChild;
   attachRemoveHandlers("extracurricularEntries");
-  attachCharCounter(card.querySelector(".extracurricular-description"), 300);
+  attachWordCounter(card.querySelector(".extracurricular-description"), 200);
 }
 
 function addCertificationEntry() {
@@ -910,6 +1045,7 @@ function buildCandidateProfile() {
       if (!title) return null;
       return { title, date: date || null, institution: institution || null };
     }),
+    section_labels: Object.keys(sectionLabels).length ? { ...sectionLabels } : undefined,
   };
 }
 
@@ -1106,6 +1242,9 @@ async function updateCvPreview() {
 // ── Reset all builder fields ──────────────────────────────────────────────────
 
 function resetBuilder() {
+  // Clear section label overrides
+  resetSectionLabels({});
+
   // Clear skills state arrays
   technicalSkills.length = 0;
   toolsSkills.length     = 0;
@@ -1553,11 +1692,12 @@ try {
   setupSkillInput("technicalSkillInput", "technicalSkillsContainer", technicalSkills);
   setupSkillInput("toolsSkillInput", "toolsSkillsContainer", toolsSkills);
   setupSkillInput("softSkillInput", "softSkillsContainer", softSkills);
+  setupSectionRenames();
   addEducationEntry();
   addLinkEntry();
   // Attach counter to static summary field
   const summaryTA = document.getElementById("summary");
-  if (summaryTA) attachCharCounter(summaryTA, 300);
+  if (summaryTA) attachWordCounter(summaryTA, 200);
 } catch (err) {
   console.error("Init error (non-fatal, builder sections may not be ready):", err);
 }
@@ -1969,6 +2109,9 @@ window.editBuilderCv = async function (jobId) {
     // Reset first so we start clean, then restore job id so Save updates not creates
     resetBuilder();
     _builderSavedJobId = jobId;
+
+    // Restore custom section labels
+    resetSectionLabels(p.section_labels || {});
 
     // Personal info
     const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ""; };

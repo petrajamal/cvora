@@ -956,18 +956,29 @@ async def save_cv_only(payload: dict, user_id: str = Depends(get_current_user_id
 
 
 @app.get("/download-cv/{job_id}/latex")
-def download_cv_latex(job_id: str, user_id: str = Depends(get_current_user_id)):
-    """Download the LaTeX source (.tex) for a built CV."""
+async def download_cv_latex(job_id: str, user_id: str = Depends(get_current_user_id)):
+    """Download the LaTeX source (.tex) for a built CV, regenerated fresh so it matches the viewer."""
     db = SessionLocal()
     try:
         job = db.query(Job).filter(Job.id == job_id).first()
         if not job or job.user_id != user_id:
             raise HTTPException(status_code=404, detail="Not found")
-        if not job.generated_latex:
-            raise HTTPException(status_code=404, detail="LaTeX source not available for this CV")
         name = (job.display_name or job.filename or "cv").replace(" ", "_")
+        # Regenerate from stored candidate_profile so it always matches the PDF display
+        if job.candidate_profile:
+            try:
+                raw_profile = json.loads(job.candidate_profile)
+                enhanced = await auto_enhance_cv_descriptions(raw_profile)
+                latex_source = generate_latex_cv(enhanced)
+            except Exception:
+                # Fall back to stored latex if regeneration fails
+                latex_source = job.generated_latex or ""
+        else:
+            latex_source = job.generated_latex or ""
+        if not latex_source:
+            raise HTTPException(status_code=404, detail="LaTeX source not available for this CV")
         return Response(
-            content=job.generated_latex.encode("utf-8"),
+            content=latex_source.encode("utf-8"),
             media_type="application/x-tex",
             headers={"Content-Disposition": f'attachment; filename="{name}.tex"'},
         )
@@ -1046,12 +1057,16 @@ async def auto_enhance_cv_descriptions(profile: dict) -> dict:
     prompt = (
         "You are polishing a CV document. For each numbered description, return a cleaned version.\n"
         "Rules (apply in order):\n"
-        "1. Fix grammar and spelling always.\n"
-        "2. Use strong action verbs.\n"
-        "3. If fewer than 10 words: expand slightly using the context — do NOT invent unrelated facts.\n"
-        "4. If more than 40 words: condense to approximately 40 words (about 3 printed lines), keeping all key information.\n"
-        "5. If already 10–40 words with good grammar: minimal changes only.\n"
-        "6. Never change meaning or add facts not stated or strongly implied by the user.\n"
+        "1. Fix all grammar, spelling, and punctuation.\n"
+        "2. Remove extra whitespace, ellipses used as filler ('...', '. . .'), and placeholder-style text.\n"
+        "3. If the text is nonsensical, incoherent, a single slang word, or clearly a test/placeholder "
+        "(e.g. 'slayed', 'test', '...', 'aaa'), rewrite it as a short professional bullet using the context provided. "
+        "Do not invent specific metrics or facts — keep it generic but professional.\n"
+        "4. Use strong action verbs.\n"
+        "5. If fewer than 10 words (after cleaning): expand slightly using the context — do NOT invent unrelated facts.\n"
+        "6. If more than 40 words: condense to approximately 40 words (about 3 printed lines), keeping all key information.\n"
+        "7. If already 10–40 words with good grammar: minimal changes only.\n"
+        "8. Never add facts not stated or strongly implied by the user.\n"
         "Return ONLY the numbered items in the same order, one per line. Format exactly:\n"
         "1. improved text\n2. improved text\n\n"
         + entries

@@ -901,6 +901,21 @@ def ai_extract_cv_data(text):
     raw_output = response.output_text.strip()
 
     result = json.loads(raw_output)
+
+    # Fill in location from CV body if not stated at the top level
+    if not result.get("location"):
+        # 1. Most recent work experience with a location
+        for exp in (result.get("work_experience") or []):
+            if exp.get("location"):
+                result["location"] = exp["location"]
+                break
+        # 2. Education location
+        if not result.get("location"):
+            for edu in (result.get("education") or []):
+                if edu.get("location"):
+                    result["location"] = edu["location"]
+                    break
+
     _ai_extract_cache[cache_key] = result
     return result
 

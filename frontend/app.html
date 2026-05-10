@@ -203,8 +203,30 @@
 
     .rule-pass { color: #059669; }
     .rule-fail { color: #94A3B8; }
-    .rule-pass::before { content: "✓  "; }
-    .rule-fail::before { content: "✗  "; }
+    .rule-pass::before {
+      content: "";
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      margin-right: 6px;
+      vertical-align: -2px;
+      background-color: #059669;
+      border-radius: 50%;
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='white' d='M13.3 4.3a1 1 0 0 1 0 1.4l-6 6a1 1 0 0 1-1.4 0l-3-3a1 1 0 1 1 1.4-1.4L6.6 9.6l5.3-5.3a1 1 0 0 1 1.4 0z'/%3E%3C/svg%3E") no-repeat center / contain;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='white' d='M13.3 4.3a1 1 0 0 1 0 1.4l-6 6a1 1 0 0 1-1.4 0l-3-3a1 1 0 1 1 1.4-1.4L6.6 9.6l5.3-5.3a1 1 0 0 1 1.4 0z'/%3E%3C/svg%3E") no-repeat center / contain;
+    }
+    .rule-fail::before {
+      content: "";
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      margin-right: 6px;
+      vertical-align: -2px;
+      background-color: #94A3B8;
+      border-radius: 50%;
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' stroke='white' stroke-width='1.5' fill='none'/%3E%3C/svg%3E") no-repeat center / contain;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' stroke='white' stroke-width='1.5' fill='none'/%3E%3C/svg%3E") no-repeat center / contain;
+    }
 
     .auth-footer {
       margin-top: 18px;
@@ -751,15 +773,7 @@
       gap: 8px;
     }
 
-    #builderSection h3::before {
-      content: '';
-      display: inline-block;
-      width: 3px;
-      height: 14px;
-      background: var(--primary);
-      border-radius: 99px;
-      flex-shrink: 0;
-    }
+    #builderSection h3::before { display: none; }
 
     #builderSection h3:first-of-type {
       border-top: none;
@@ -1643,7 +1657,7 @@
             <label><input type="checkbox" value="willing_to_relocate" /> Willing to Relocate</label>
           </div>
 
-          <div id="relocationCountriesGroup" style="display:none;">
+          <div id="relocationCountriesGroup" style="display:none;margin-top:8px;">
           <label for="relocationCountries">Relocation Countries <span style="text-transform:none;font-weight:400;letter-spacing:0;color:var(--text-muted)">(hold Cmd/Ctrl for multiple)</span></label>
           <select id="relocationCountries" multiple size="6">
             <optgroup label="Middle East &amp; North Africa">
@@ -1704,7 +1718,8 @@
           </select>
           </div>
 
-          <button type="submit" style="margin-top:18px;">Analyze CV</button>
+          <button type="submit" id="analyzeCvBtn" style="margin-top:18px;" disabled>Analyze CV</button>
+          <div id="fileSizeError" style="font-size:12px;color:var(--danger);margin-top:6px;min-height:16px;"></div>
         </form>
       </div>
 
@@ -1830,6 +1845,7 @@
               <label><input type="checkbox" value="willing_to_relocate" /> Willing to Relocate</label>
             </div>
 
+            <div id="relocationCountriesGroupBuilder" style="display:none;margin-top:8px;">
             <label for="builderRelocationCountries">Relocation Countries <span style="text-transform:none;font-weight:400;letter-spacing:0;color:var(--text-muted)">(hold Cmd/Ctrl for multiple)</span></label>
             <select id="builderRelocationCountries" multiple size="6">
               <optgroup label="Middle East &amp; North Africa">
@@ -1888,6 +1904,7 @@
                 <option value="TR">Turkey</option>
               </optgroup>
             </select>
+            </div>
 
             <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
               <button type="submit" id="buildCvBtn">Build CV &amp; Preview</button>
@@ -1940,6 +1957,38 @@
     </div><!-- /mainView -->
 
   </div><!-- /appScreen -->
+
+  <!-- Confirm modal -->
+  <div id="confirmModal" style="
+    display:none; position:fixed; inset:0; z-index:1000;
+    background:rgba(0,0,0,0.45); backdrop-filter:blur(4px);
+    align-items:center; justify-content:center;">
+    <div style="
+      background:#fff; border-radius:16px; padding:32px 28px 24px;
+      max-width:420px; width:calc(100% - 48px); box-shadow:0 20px 60px rgba(0,0,0,0.18);
+      animation:modal-in .18s ease;">
+      <h3 id="confirmModalTitle" style="margin:0 0 10px;font-size:17px;font-weight:700;color:var(--text);"></h3>
+      <p  id="confirmModalBody"  style="margin:0 0 24px;font-size:14px;color:var(--text-secondary);line-height:1.6;"></p>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button id="confirmModalCancel" style="
+          padding:9px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;
+          background:#F1F5F9;border:1.5px solid var(--border);color:var(--text-secondary);">
+          Cancel
+        </button>
+        <button id="confirmModalOk" style="
+          padding:9px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;
+          background:var(--danger);border:none;color:#fff;">
+          Continue
+        </button>
+      </div>
+    </div>
+  </div>
+  <style>
+    @keyframes modal-in {
+      from { opacity:0; transform:translateY(12px) scale(.97); }
+      to   { opacity:1; transform:translateY(0)    scale(1);   }
+    }
+  </style>
 
   <script src="/app.js"></script>
 </body>

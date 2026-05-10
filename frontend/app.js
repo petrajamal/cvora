@@ -870,7 +870,10 @@ if (uploadForm) {
 
     // Check if there's already an active analysis
     if (_activeJobId && _activeInterval) {
-      const ok = confirm("A CV is currently being analyzed. Starting a new one will stop the current analysis. Continue?");
+      const ok = await showConfirmModal(
+        "Analysis in progress",
+        "A CV is currently being analyzed. Starting a new one will stop the current analysis. Continue?"
+      );
       if (!ok) return;
       window.stopAnalysis();
     }
@@ -2028,6 +2031,36 @@ window.editBuilderCv = async function (jobId) {
     alert("Failed to load CV for editing. Please try again.");
   }
 };
+
+// ── In-page confirm modal ─────────────────────────────────────────────────────
+function showConfirmModal(title, body) {
+  return new Promise((resolve) => {
+    const modal  = document.getElementById("confirmModal");
+    const titleEl = document.getElementById("confirmModalTitle");
+    const bodyEl  = document.getElementById("confirmModalBody");
+    const okBtn   = document.getElementById("confirmModalOk");
+    const cancelBtn = document.getElementById("confirmModalCancel");
+
+    titleEl.textContent = title;
+    bodyEl.textContent  = body;
+    modal.style.display = "flex";
+
+    function cleanup(result) {
+      modal.style.display = "none";
+      okBtn.removeEventListener("click", onOk);
+      cancelBtn.removeEventListener("click", onCancel);
+      modal.removeEventListener("click", onBackdrop);
+      resolve(result);
+    }
+    const onOk      = () => cleanup(true);
+    const onCancel  = () => cleanup(false);
+    const onBackdrop = (e) => { if (e.target === modal) cleanup(false); };
+
+    okBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
+    modal.addEventListener("click", onBackdrop);
+  });
+}
 
 // ── File input: enable Analyze button + validate size before upload ──────────
 document.getElementById("cv")?.addEventListener("change", function () {

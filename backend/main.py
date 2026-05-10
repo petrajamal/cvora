@@ -20,7 +20,7 @@ from models import Job, User, PasswordResetToken, LikedJob
 from fastapi.middleware.cors import CORSMiddleware
 from auth import (
     hash_password, verify_password,
-    create_access_token, get_current_user_id,
+    create_access_token, get_current_user_id, decode_access_token,
     validate_password_strength,
     generate_reset_token, hash_reset_token, reset_token_expiry,
 )
@@ -559,6 +559,27 @@ def cancel_job(job_id: str, user_id: str = Depends(get_current_user_id)):
         return {"ok": True}
     finally:
         db.close()
+
+
+@app.post("/job/{job_id}/cancel-beacon")
+async def cancel_job_beacon(job_id: str, request: Request):
+    """sendBeacon-compatible cancel: reads token from JSON body (no auth header support in beacons)."""
+    try:
+        body = await request.json()
+        token = body.get("token", "")
+        user_id = decode_access_token(token)
+    except Exception:
+        return Response(status_code=204)
+    db = SessionLocal()
+    try:
+        job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
+        if job and job.status in ("pending", "processing", "pending_matching"):
+            job.status = "failed"
+            job.status_message = "Cancelled — page closed or refreshed."
+            db.commit()
+    finally:
+        db.close()
+    return Response(status_code=204)
 
 
 @app.post("/job/{job_id}/heartbeat")

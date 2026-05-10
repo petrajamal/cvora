@@ -2032,6 +2032,17 @@ window.editBuilderCv = async function (jobId) {
   }
 };
 
+// ── Cancel active job on page unload (refresh or close) ──────────────────────
+window.addEventListener("beforeunload", () => {
+  if (_activeJobId && getToken()) {
+    const blob = new Blob(
+      [JSON.stringify({ token: getToken() })],
+      { type: "application/json" }
+    );
+    navigator.sendBeacon(`${BACKEND_URL}/job/${_activeJobId}/cancel-beacon`, blob);
+  }
+});
+
 // ── In-page confirm modal ─────────────────────────────────────────────────────
 function showConfirmModal(title, body) {
   return new Promise((resolve) => {

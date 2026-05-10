@@ -146,6 +146,15 @@ KNOWN_TECH_SKILLS = {
     "electrical systems", "cad", "cam", "fea", "hvac",
 }
 
+# Precomputed lookup structures for O(1) skill matching.
+# Skills are bucketed by their word count so we only generate
+# the n-gram sizes that are actually needed.
+_SKILLS_BY_NGRAM: dict[int, set] = {}
+for _s in KNOWN_TECH_SKILLS:
+    n = len(_s.split())
+    _SKILLS_BY_NGRAM.setdefault(n, set()).add(_s)
+_MAX_NGRAM = max(_SKILLS_BY_NGRAM)
+
 # Locations that aren't natively supported by Adzuna.
 # We still map them to "gb" for a broad search, but we must NOT pass
 # their city/country as a `where` filter — it would return 0 results.
@@ -218,12 +227,23 @@ def clean_html(text):
 
 
 def extract_skills_from_text(text):
-    """Return known tech skills found in a job description."""
-    text_lower = text.lower()
+    """Return known skills found in a job description.
+
+    Tokenises the text once into words, then generates n-grams for each
+    word-count bucket and does O(1) set lookups — instead of running a
+    separate regex scan per skill.
+    """
+    words = re.findall(r"[a-z0-9][a-z0-9+#./\-]*", text.lower())
     found = []
-    for skill in KNOWN_TECH_SKILLS:
-        if re.search(r"\b" + re.escape(skill) + r"\b", text_lower):
-            found.append(skill)
+    seen = set()
+    for i, _ in enumerate(words):
+        for n, bucket in _SKILLS_BY_NGRAM.items():
+            if i + n > len(words):
+                continue
+            candidate = " ".join(words[i:i + n])
+            if candidate in bucket and candidate not in seen:
+                found.append(candidate)
+                seen.add(candidate)
     return found
 
 

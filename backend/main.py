@@ -12,7 +12,10 @@ import requests
 from collections import defaultdict
 from datetime import datetime
 
-from latex_gen import generate_latex_cv, compile_to_pdf
+from latex_gen import (
+    generate_latex_cv, compile_to_pdf, compile_to_pdf_checked,
+    compute_allow_two_pages,
+)
 
 from database import Base, engine, SessionLocal
 import r2
@@ -534,13 +537,33 @@ def delete_job(job_id: str, user_id: str = Depends(get_current_user_id)):
         job = db.query(Job).filter(Job.id == job_id, Job.user_id == user_id).first()
         if not job:
             raise HTTPException(status_code=404, detail="Job not found.")
+        # Collect URLs from matched jobs so we can cascade-delete liked jobs
+        matched_urls: set[str] = set()
+        if job.matched_jobs:
+            try:
+                for m in json.loads(job.matched_jobs):
+                    url = (m.get("url") or m.get("job_url") or "").strip()
+                    if url:
+                        matched_urls.add(url)
+            except Exception:
+                pass
+        deleted_likes = 0
+        if matched_urls:
+            rows = (
+                db.query(LikedJob)
+                .filter(LikedJob.user_id == user_id, LikedJob.job_url.in_(matched_urls))
+                .all()
+            )
+            deleted_likes = len(rows)
+            for row in rows:
+                db.delete(row)
         # Delete R2 objects
         for key in [job.file_path, job.generated_pdf_path]:
             if key:
                 r2.delete(key)
         db.delete(job)
         db.commit()
-        return {"ok": True}
+        return {"ok": True, "deleted_likes": deleted_likes}
     finally:
         db.close()
 
@@ -712,6 +735,7 @@ def get_liked_jobs(user_id: str = Depends(get_current_user_id)):
         ).order_by(LikedJob.created_at.desc()).all()
         return [
             {
+                "id":          l.id,
                 "job_url":     l.job_url,
                 "job_title":   l.job_title,
                 "job_company": l.job_company,
@@ -905,12 +929,7 @@ async def save_cv_only(payload: dict, user_id: str = Depends(get_current_user_id
     enhanced_profile = await auto_enhance_cv_descriptions(candidate_profile)
 
     try:
-        latex_source = generate_latex_cv(enhanced_profile)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"LaTeX generation failed: {exc}")
-
-    try:
-        pdf_bytes = compile_to_pdf(latex_source)
+        latex_source, pdf_bytes = await build_one_page_cv(enhanced_profile)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
     except Exception as exc:
@@ -1087,6 +1106,29 @@ async def auto_enhance_cv_descriptions(profile: dict) -> dict:
     return p
 
 
+async def build_one_page_cv(enhanced_profile: dict):
+    """
+    Generate latex + pdf, iteratively tightening max_bullets until the PDF fits
+    on 1 page. Tries max_bullets 3 → 2 → 1 for candidates without 7+ years exp.
+    Returns (latex_source, pdf_bytes).
+    """
+    if compute_allow_two_pages(enhanced_profile):
+        latex = generate_latex_cv(enhanced_profile)
+        pdf   = compile_to_pdf(latex)
+        return latex, pdf
+
+    for mb in [3, 2, 1]:
+        latex = generate_latex_cv(enhanced_profile, max_bullets_override=mb)
+        try:
+            pdf, pages = compile_to_pdf_checked(latex)
+        except RuntimeError:
+            raise
+        if pages <= 1:
+            return latex, pdf
+
+    return latex, pdf  # best effort (still 1 bullet each)
+
+
 @app.post("/enhance-description")
 async def enhance_description(payload: dict, user_id: str = Depends(get_current_user_id)):
     """Use AI to condense a long job description into tight CV bullet points."""
@@ -1155,8 +1197,7 @@ async def preview_cv(
     enhanced_profile = await auto_enhance_cv_descriptions(candidate_profile)
 
     try:
-        latex_source = generate_latex_cv(enhanced_profile)
-        pdf_bytes = compile_to_pdf(latex_source)
+        _, pdf_bytes = await build_one_page_cv(enhanced_profile)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
     except Exception as exc:

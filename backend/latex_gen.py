@@ -173,7 +173,24 @@ def _sort_chrono(entries, end_key="end_date", start_key="start_date"):
     return sorted(entries, key=_key, reverse=True)
 
 
-def generate_latex_cv(profile: dict) -> str:
+def compute_allow_two_pages(profile: dict) -> bool:
+    """Return True iff the candidate has ≥7 years experience across ≥3 jobs."""
+    work_experience = profile.get("work_experience") or []
+    total = 0
+    for exp in work_experience:
+        s = parse_month_year(exp.get("start_date", ""))
+        e_raw = (exp.get("end_date") or "").strip()
+        if not e_raw or "present" in e_raw.lower():
+            now = datetime.now()
+            e = (now.year, now.month)
+        else:
+            e = parse_month_year(e_raw)
+        if s and e:
+            total += months_between(s, e)
+    return (total // 12) >= 7 and len(work_experience) >= 3
+
+
+def generate_latex_cv(profile: dict, max_bullets_override: int | None = None) -> str:
     name     = latex_escape(profile.get("full_name", ""))
     links    = profile.get("links", []) or []
     summary  = latex_escape(profile.get("summary", ""))
@@ -187,21 +204,12 @@ def generate_latex_cv(profile: dict) -> str:
     awards          = profile.get("awards", [])          or []
     languages       = profile.get("languages", [])       or []
 
-    # ── Page limit: compute before block assembly ──────────────────────────────
-    _exp_months = 0
-    for _exp in work_experience:
-        _s = parse_month_year(_exp.get("start_date", ""))
-        _e_raw = (_exp.get("end_date") or "").strip()
-        if not _e_raw or "present" in _e_raw.lower():
-            _now = datetime.now()
-            _e = (_now.year, _now.month)
-        else:
-            _e = parse_month_year(_e_raw)
-        if _s and _e:
-            _exp_months += months_between(_s, _e)
-    _years_exp = _exp_months // 12
-    allow_two_pages = (_years_exp >= 7 and len(work_experience) >= 3)
-    max_bullets = None if allow_two_pages else 3
+    # ── Page limit ────────────────────────────────────────────────────────────
+    allow_two_pages = compute_allow_two_pages(profile)
+    if max_bullets_override is not None:
+        max_bullets = max_bullets_override
+    else:
+        max_bullets = None if allow_two_pages else 3
 
     # ── Section label helper (custom names from UI) ────────────────────────────
     _sl = profile.get("section_labels") or {}
@@ -213,17 +221,16 @@ def generate_latex_cv(profile: dict) -> str:
     # ── inner helpers ──────────────────────────────────────────────────────────
 
     def entry_header(left_bold, right, subtitle=""):
-        # \\[-2pt] on the title line pulls the subtitle up tight to the title.
-        # The subtitle ends with plain \\ so the following \vspace{6pt} gives
-        # full inter-entry separation without being cancelled by a negative skip.
+        # Title line ends with \\[-2pt] to pull subtitle close (tight within-entry spacing).
+        # Subtitle has NO trailing \\ — the caller closes with \par so that the
+        # following \vspace{3pt} is a clean between-paragraph skip, not a within-line skip.
         if right:
             first_line = f"\\textbf{{{left_bold}}} \\hfill \\small {right} \\\\[-2pt]"
         else:
             first_line = f"\\textbf{{{left_bold}}} \\\\[-2pt]"
-        lines = [first_line]
         if subtitle:
-            lines.append(f"\\small\\textit{{{subtitle}}} \\\\")
-        return "\n".join(lines)
+            return f"{first_line}\n\\small\\textit{{{subtitle}}}"
+        return first_line
 
     def date_range(start, end, open_ended=False):
         start_fmt = fmt_date(start) if start else ""
@@ -254,7 +261,8 @@ def generate_latex_cv(profile: dict) -> str:
 
         education_blocks.append(
             entry_header(institution, date_range(start, end, open_ended=True), subtitle)
-            + (render_bullets(desc, max_bullets) if desc else "\n\\vspace{6pt}\n")
+            + (render_bullets(desc, max_bullets) + "\n\\vspace{3pt}\n"
+               if desc else "\\par\n\\vspace{3pt}\n")
         )
 
     # ── Work Experience ────────────────────────────────────────────────────────
@@ -274,8 +282,8 @@ def generate_latex_cv(profile: dict) -> str:
 
         experience_blocks.append(
             entry_header(position or org, date_range(start, end, open_ended=True), subtitle)
-            + render_bullets(bullets, max_bullets)
-            + "\n\\vspace{6pt}\n"
+            + (render_bullets(bullets, max_bullets) + "\n\\vspace{3pt}\n"
+               if bullets else "\\par\n\\vspace{3pt}\n")
         )
 
     # ── Projects ───────────────────────────────────────────────────────────────
@@ -304,8 +312,8 @@ def generate_latex_cv(profile: dict) -> str:
         project_blocks.append(
             entry_header(title, date_str, subtitle)
             + link_str
-            + render_bullets(desc, max_bullets)
-            + "\n\\vspace{6pt}\n"
+            + (render_bullets(desc, max_bullets) + "\n\\vspace{3pt}\n"
+               if desc else "\\par\n\\vspace{3pt}\n")
         )
 
     # ── Extracurriculars ───────────────────────────────────────────────────────
@@ -322,8 +330,8 @@ def generate_latex_cv(profile: dict) -> str:
 
         extracurricular_blocks.append(
             entry_header(title, date, subtitle)
-            + render_bullets(desc, max_bullets)
-            + "\n\\vspace{6pt}\n"
+            + (render_bullets(desc, max_bullets) + "\n\\vspace{3pt}\n"
+               if desc else "\\par\n\\vspace{3pt}\n")
         )
 
     # ── Certifications ─────────────────────────────────────────────────────────
@@ -409,8 +417,10 @@ def generate_latex_cv(profile: dict) -> str:
     else:
         skills_section = ""
 
-    # ── Header lines ───────────────────────────────────────────────────────────
+    # ── Header lines: order is location · email · phone, then links A-Z ──────
     contact_items = []
+    if profile.get("location"):
+        contact_items.append(latex_escape(profile["location"]))
     if profile.get("email"):
         contact_items.append(
             f"\\href{{mailto:{latex_escape(profile['email'])}}}"
@@ -418,24 +428,25 @@ def generate_latex_cv(profile: dict) -> str:
         )
     if profile.get("phone"):
         contact_items.append(latex_escape(profile["phone"]))
-    if profile.get("location"):
-        contact_items.append(latex_escape(profile["location"]))
 
-    formatted_links_header = []
+    # Build link items, sort alphabetically by display text
+    _raw_links = []
     for link in links:
         url_raw     = (link.get("url") or "").strip()
         display_raw = (link.get("display") or link.get("url") or "").strip()
         if url_raw:
             label = latex_escape(display_raw or url_raw)
             escaped_url = latex_escape(url_raw)
-            formatted_links_header.append(f"\\href{{{escaped_url}}}{{{label}}}")
+            _raw_links.append((display_raw.lower(), f"\\href{{{escaped_url}}}{{{label}}}"))
+    _raw_links.sort(key=lambda x: x[0])
+    formatted_links_header = [item for _, item in _raw_links]
 
     header_line1 = " $\\cdot$ ".join(contact_items)
     header_line2 = " $\\cdot$ ".join(formatted_links_header)
 
     # Single header line when combined text is short enough; else split
     _contact_raw = " ".join(filter(None, [
-        profile.get("email", ""), profile.get("phone", ""), profile.get("location", ""),
+        profile.get("location", ""), profile.get("email", ""), profile.get("phone", ""),
     ]))
     _links_raw = " ".join(filter(None, [
         (lk.get("display") or lk.get("url") or "") for lk in links if lk.get("url")
@@ -509,6 +520,7 @@ def generate_latex_cv(profile: dict) -> str:
   \\vspace{{5pt}}%
   \\noindent{{\\large\\bfseries\\scshape #1}}%
   \\par\\vspace{{1pt}}\\noindent\\rule{{\\linewidth}}{{0.4pt}}\\vspace{{3pt}}%
+  \\nopagebreak[4]%
 }}
 % ── List spacing: tight bullets without enumitem ──────────────────────────
 \\def\\@listi{{\\leftmargin 1.4em \\topsep 1pt \\parsep 0pt \\itemsep 1pt}}
@@ -586,3 +598,35 @@ def compile_to_pdf(latex_source: str) -> bytes:
 
         with open(pdf_path, "rb") as fh:
             return fh.read()
+
+
+def compile_to_pdf_checked(latex_source: str) -> tuple:
+    """Like compile_to_pdf but also returns page count parsed from pdflatex stdout."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tex_path = os.path.join(tmpdir, "cv.tex")
+        pdf_path = os.path.join(tmpdir, "cv.pdf")
+
+        with open(tex_path, "w", encoding="utf-8") as fh:
+            fh.write(latex_source)
+
+        result = subprocess.run(
+            [PDFLATEX_BIN, "-interaction=nonstopmode", "-output-directory", tmpdir, tex_path],
+            capture_output=True, timeout=60, env=_TEX_ENV,
+        )
+        stdout = (result.stdout or b"").decode("utf-8", errors="replace")
+        stderr = (result.stderr or b"").decode("utf-8", errors="replace")
+
+        if not os.path.exists(pdf_path):
+            combined = stdout + stderr
+            if any(ord(c) > 0x036F for c in latex_source[:500]):
+                raise RuntimeError(
+                    "The CV builder does not support non-Latin scripts (Arabic, CJK, etc.). "
+                    "Please use English or Latin-alphabet text."
+                )
+            raise RuntimeError(f"Preview generation failed:\n{combined[-1500:]}")
+
+        m = re.search(r"Output written on .+? \((\d+) page", stdout)
+        page_count = int(m.group(1)) if m else 1
+
+        with open(pdf_path, "rb") as fh:
+            return fh.read(), page_count

@@ -1915,13 +1915,14 @@ async function loadProfileData() {
             const date = j.created_at ? new Date(j.created_at).toLocaleDateString() : "—";
             const top = j.top_match;
             if (!top) return "";
-            return `<div class="saved-cv-card">
+            return `<div class="saved-cv-card" id="job-match-${j.job_id}">
               <div class="saved-cv-icon">Job</div>
               <div class="saved-cv-info">
                 <strong>${escapeHtml(top.title || "Job")}</strong>
                 <span>${escapeHtml(top.company || "")} · ${date}</span>
               </div>
               <span class="saved-cv-badge done">${top.match_score ? Math.round((top.match_score / 500) * 100) + "%" : "—"}</span>
+              <button class="btn-danger-sm" onclick="deleteJobMatch('${j.job_id}')" title="Delete matches">✕</button>
             </div>`;
           }).join("");
         }
@@ -1942,7 +1943,7 @@ async function loadProfileData() {
       likedList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>&#9825;</div><strong>No saved jobs yet</strong><p>Hit the save button on any job result to save it here.</p></div>";
     } else {
       likedList.innerHTML = liked.map(l => `
-        <div class="saved-cv-card">
+        <div class="saved-cv-card" id="liked-job-${escapeHtml(l.id)}">
           <div class="saved-cv-icon" style="color:#DC2626;">&#9829;</div>
           <div class="saved-cv-info">
             <strong>${escapeHtml(l.job_title || "Job")}</strong>
@@ -1950,6 +1951,7 @@ async function loadProfileData() {
           </div>
           ${l.job_url ? `<a href="${escapeHtml(l.job_url)}" target="_blank" rel="noopener noreferrer"
             style="font-size:12px;font-weight:600;color:#4F46E5;text-decoration:none;flex-shrink:0;">View &#8594;</a>` : ""}
+          <button class="btn-danger-sm" onclick="unlikeJob(${JSON.stringify(l.job_url || '')}, ${JSON.stringify(l.id || '')})" title="Remove from saved">&#9825;</button>
         </div>`).join("");
     }
   } catch (_) {
@@ -2028,7 +2030,10 @@ window.startRename = function (jobId, btn) {
 };
 
 window.deleteCv = async function (jobId) {
-  const confirmed = await showConfirmModal("Delete CV", "Delete this CV? This cannot be undone.");
+  // Count associated match cards so we can inform the user
+  const matchCard = document.getElementById(`job-match-${jobId}`);
+  const matchNote = matchCard ? " This will also delete its associated job matches." : "";
+  const confirmed = await showConfirmModal("Delete CV", `Delete this CV? This cannot be undone.${matchNote}`);
   if (!confirmed) return;
   try {
     const res = await apiFetch(`${BACKEND_URL}/job/${jobId}`, {
@@ -2037,12 +2042,61 @@ window.deleteCv = async function (jobId) {
     });
     if (!res.ok) throw new Error();
     document.getElementById(`cv-card-${jobId}`)?.remove();
+    matchCard?.remove();
     const cvsList = document.getElementById("profileCvsList");
     if (cvsList && cvsList.children.length === 0) {
       cvsList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>CV</div><strong>No CVs yet</strong><p>Build or upload a CV to get started.</p></div>";
     }
+    const matchesList = document.getElementById("profileMatchesList");
+    if (matchesList && matchesList.querySelectorAll(".saved-cv-card").length === 0) {
+      matchesList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>Jobs</div><strong>No job matches yet</strong><p>Run 'Find Jobs' on a built CV to see results here.</p></div>";
+    }
   } catch (_) {
     showToast("Failed to delete. Please try again.");
+  }
+};
+
+window.deleteJobMatch = async function (jobId) {
+  const confirmed = await showConfirmModal("Delete Job Matches", "Remove all job matches for this CV? This cannot be undone.");
+  if (!confirmed) return;
+  try {
+    const res = await apiFetch(`${BACKEND_URL}/job/${jobId}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error();
+    document.getElementById(`job-match-${jobId}`)?.remove();
+    document.getElementById(`cv-card-${jobId}`)?.remove();
+    const cvsList = document.getElementById("profileCvsList");
+    if (cvsList && cvsList.children.length === 0) {
+      cvsList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>CV</div><strong>No CVs yet</strong><p>Build or upload a CV to get started.</p></div>";
+    }
+    const matchesList = document.getElementById("profileMatchesList");
+    if (matchesList && matchesList.querySelectorAll(".saved-cv-card").length === 0) {
+      matchesList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>Jobs</div><strong>No job matches yet</strong><p>Run 'Find Jobs' on a built CV to see results here.</p></div>";
+    }
+  } catch (_) {
+    showToast("Failed to delete. Please try again.");
+  }
+};
+
+window.unlikeJob = async function (jobUrl, likedId) {
+  const confirmed = await showConfirmModal("Remove Saved Job", "Remove this job from your saved list?");
+  if (!confirmed) return;
+  try {
+    const res = await apiFetch(`${BACKEND_URL}/like-job`, {
+      method: "DELETE",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ job_url: jobUrl }),
+    });
+    if (!res.ok) throw new Error();
+    document.getElementById(`liked-job-${likedId}`)?.remove();
+    const likedList = document.getElementById("profileLikedList");
+    if (likedList && likedList.querySelectorAll(".saved-cv-card").length === 0) {
+      likedList.innerHTML = "<div class='profile-empty'><div class='profile-empty-icon'>&#9825;</div><strong>No saved jobs yet</strong><p>Hit the save button on any job result to save it here.</p></div>";
+    }
+  } catch (_) {
+    showToast("Failed to remove. Please try again.");
   }
 };
 

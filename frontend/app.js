@@ -899,10 +899,23 @@ function getTextValue(selector, root) {
 }
 
 function splitBullets(text) {
-  return (text || "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+  // Join continuation lines into the preceding bullet.
+  // A line is a continuation (not a new bullet) when it starts with a
+  // lowercase letter, a conjunction/article, or the previous line ended
+  // mid-sentence (no closing punctuation).
+  const lines = (text || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const bullets = [];
+  for (const line of lines) {
+    const prev = bullets[bullets.length - 1];
+    const startsLower = /^[a-z]/.test(line);
+    const prevOpen = prev && !/[.!?]$/.test(prev);
+    if (prev && (startsLower || prevOpen)) {
+      bullets[bullets.length - 1] = prev.replace(/,\s*$/, "") + " " + line;
+    } else {
+      bullets.push(line);
+    }
+  }
+  return bullets;
 }
 
 function collectEntries(containerId, mapper) {

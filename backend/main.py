@@ -983,17 +983,16 @@ async def download_cv_latex(job_id: str, user_id: str = Depends(get_current_user
         if not job or job.user_id != user_id:
             raise HTTPException(status_code=404, detail="Not found")
         name = (job.display_name or job.filename or "cv").replace(" ", "_")
-        # Regenerate from stored candidate_profile so it always matches the PDF display
-        if job.candidate_profile:
+        # Return the stored latex that was actually compiled — guaranteed to match the PDF.
+        # Only regenerate if the stored latex is missing (old CVs created before storage was added).
+        latex_source = job.generated_latex or ""
+        if not latex_source and job.candidate_profile:
             try:
                 raw_profile = json.loads(job.candidate_profile)
                 enhanced = await auto_enhance_cv_descriptions(raw_profile)
-                latex_source = generate_latex_cv(enhanced)
+                latex_source, _ = await build_one_page_cv(enhanced)
             except Exception:
-                # Fall back to stored latex if regeneration fails
-                latex_source = job.generated_latex or ""
-        else:
-            latex_source = job.generated_latex or ""
+                latex_source = ""
         if not latex_source:
             raise HTTPException(status_code=404, detail="LaTeX source not available for this CV")
         return Response(

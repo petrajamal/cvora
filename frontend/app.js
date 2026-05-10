@@ -2486,7 +2486,8 @@ document.getElementById("saveCvBtn")?.addEventListener("click", async () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Update failed");
-      previewStatus.innerHTML = `<span class="preview-status-ok">CV updated</span>`;
+      // Refresh the preview so the iframe matches what was actually saved
+      await updateCvPreview();
     } catch (err) {
       previewStatus.innerHTML = `<span class="preview-status-err">${escapeHtml(err.message || "Update failed")}</span>`;
     } finally {

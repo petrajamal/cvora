@@ -1,1 +1,1 @@
-/app  /app.html  200
+# Cloudflare Pages auto-serves app.html at /app — no redirect needed

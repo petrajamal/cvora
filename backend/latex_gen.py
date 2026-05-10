@@ -28,6 +28,52 @@ if _TEX_BIN_DIR not in _TEX_ENV.get("PATH", ""):
 
 # ── Small text helpers ─────────────────────────────────────────────────────────
 
+# ── Bullet line estimator ──────────────────────────────────────────────────────
+# Calibrated for 10pt Computer Modern on A4 (210mm) with left=0.65in,
+# right=0.65in margins (text width ≈ 177mm) and \leftmargin 1.4em bullet
+# indentation. Verified: "...early intervention," (99 chars) fits on line 1;
+# "and tailored support plans." wraps to line 2 — so 100 chars/line is accurate.
+_BULLET_CPL = 100  # characters per bullet-content line
+
+
+def estimate_bullet_lines(text: str) -> int:
+    """Estimate how many printed lines a single bullet occupies."""
+    words = text.split()
+    if not words:
+        return 0
+    lines, col = 1, 0
+    for word in words:
+        wlen = len(word)
+        if col == 0:
+            col = wlen
+        elif col + 1 + wlen > _BULLET_CPL:
+            lines += 1
+            col = wlen
+        else:
+            col += 1 + wlen
+    return lines
+
+
+def last_line_word_count(text: str) -> int:
+    """Return the number of words sitting on the last printed line of a bullet."""
+    words = text.split()
+    if not words:
+        return 0
+    col, count = 0, 0
+    for word in words:
+        wlen = len(word)
+        if col == 0:
+            col = wlen
+            count = 1
+        elif col + 1 + wlen > _BULLET_CPL:
+            col = wlen
+            count = 1
+        else:
+            col += 1 + wlen
+            count += 1
+    return count
+
+
 _MONTH_MAP = {
     "jan": 1, "january": 1,
     "feb": 2, "february": 2,

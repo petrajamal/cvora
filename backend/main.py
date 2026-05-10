@@ -14,7 +14,7 @@ from datetime import datetime
 
 from latex_gen import (
     generate_latex_cv, compile_to_pdf, compile_to_pdf_checked,
-    compute_allow_two_pages,
+    compute_allow_two_pages, estimate_bullet_lines, last_line_word_count,
 )
 
 from database import Base, engine, SessionLocal
@@ -1131,19 +1131,105 @@ async def auto_enhance_cv_descriptions(profile: dict) -> dict:
     return p
 
 
+async def apply_line_rules(profile: dict) -> dict:
+    """
+    Rule 1 — cap each entry's bullet content at 6 printed lines total.
+             Trailing bullets are dropped until the entry fits.
+    Rule 2 — if a bullet ends with exactly 1 word on its last line (widow),
+             ask GPT to shorten it by 1 word. Repeated up to 3 times per
+             bullet in case the first trim still leaves a widow.
+    """
+    import copy
+    from openai import AsyncOpenAI
+
+    MAX_ENTRY_LINES = 6
+
+    p = copy.deepcopy(profile)
+
+    # ── Rule 1: trim bullets until entry fits ────────────────────────────────
+    def cap_entry(desc):
+        if not isinstance(desc, list):
+            return desc
+        result, total = [], 0
+        for bullet in desc:
+            lines = estimate_bullet_lines(bullet)
+            if total + lines <= MAX_ENTRY_LINES:
+                result.append(bullet)
+                total += lines
+            else:
+                break
+        return result
+
+    for section in ("work_experience", "education", "projects", "extracurriculars", "awards"):
+        for entry in (p.get(section) or []):
+            if entry.get("description"):
+                entry["description"] = cap_entry(entry["description"])
+
+    # ── Rule 2: fix widow words via GPT (up to 3 passes) ────────────────────
+    if not os.getenv("OPENAI_API_KEY"):
+        return p
+
+    client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+    for _pass in range(3):
+        # Collect all bullets that still have a widow
+        widow_items = []  # [(text, setter)]
+
+        def _collect_widows(desc, setter_list):
+            if not isinstance(desc, list):
+                return
+            for i, bullet in enumerate(desc):
+                if isinstance(bullet, str) and last_line_word_count(bullet) == 1:
+                    setter_list.append((bullet, lambda v, d=desc, j=i: d.__setitem__(j, v)))
+
+        for section in ("work_experience", "education", "projects", "extracurriculars", "awards"):
+            for entry in (p.get(section) or []):
+                _collect_widows(entry.get("description") or [], widow_items)
+
+        if not widow_items:
+            break
+
+        entries = "\n\n".join(
+            f"{i+1}. {text}" for i, (text, _) in enumerate(widow_items)
+        )
+        prompt = (
+            "Each numbered item is a CV bullet point that has exactly one trailing word "
+            "on a new line when typeset (a widow). Remove the fewest words possible — "
+            "ideally just one — so the bullet fits on one fewer line. "
+            "Do not change meaning. Return one line per item in the same numbered format.\n\n"
+            + entries
+        )
+        try:
+            resp = await client.responses.create(model="gpt-4o-mini", input=prompt)
+            for num_str, text in re.findall(
+                r"^(\d+)\.\s+(.*?)(?=\n\d+\.|\Z)",
+                resp.output_text.strip(),
+                re.DOTALL | re.MULTILINE,
+            ):
+                idx = int(num_str) - 1
+                if 0 <= idx < len(widow_items):
+                    widow_items[idx][1](re.sub(r"\s+", " ", text).strip())
+        except Exception:
+            break  # keep what we have on failure
+
+    return p
+
+
 async def build_one_page_cv(enhanced_profile: dict):
     """
     Generate latex + pdf, iteratively tightening max_bullets until the PDF fits
     on 1 page. Tries max_bullets 3 → 2 → 1 for candidates without 7+ years exp.
     Returns (latex_source, pdf_bytes).
     """
-    if compute_allow_two_pages(enhanced_profile):
-        latex = generate_latex_cv(enhanced_profile)
+    p = await apply_line_rules(enhanced_profile)
+
+    if compute_allow_two_pages(p):
+        latex = generate_latex_cv(p)
         pdf   = compile_to_pdf(latex)
         return latex, pdf
 
     for mb in [3, 2, 1]:
-        latex = generate_latex_cv(enhanced_profile, max_bullets_override=mb)
+        latex = generate_latex_cv(p, max_bullets_override=mb)
         try:
             pdf, pages = compile_to_pdf_checked(latex)
         except RuntimeError:

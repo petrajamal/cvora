@@ -121,7 +121,7 @@
 
     /* ── Hero ── */
     .hero {
-      padding: 130px 24px 90px;
+      padding: 130px 24px 60px;
       text-align: center;
       max-width: 760px;
       margin: 0 auto;
@@ -321,12 +321,314 @@
 
     footer p { font-size: 13px; color: var(--text-secondary); }
 
+    /* ════════════════════════════════════════════
+       PRODUCT PREVIEW
+    ════════════════════════════════════════════ */
+    .preview-section {
+      padding: 0 24px 80px;
+    }
+
+    .preview-label {
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+      letter-spacing: 0.01em;
+    }
+
+    .preview-browser {
+      max-width: 1020px;
+      margin: 0 auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.08);
+    }
+
+    .browser-chrome {
+      background: #F3F4F6;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .browser-dots {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .browser-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .browser-dot:nth-child(1) { background: #FC5F57; }
+    .browser-dot:nth-child(2) { background: #FDBC2C; }
+    .browser-dot:nth-child(3) { background: #27C840; }
+
+    .browser-address {
+      flex: 1;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-align: center;
+      max-width: 280px;
+      margin: 0 auto;
+    }
+
+    .preview-panels {
+      display: grid;
+      grid-template-columns: 1fr 1px 1fr;
+      background: var(--surface);
+      min-height: 480px;
+    }
+
+    .preview-panel-divider {
+      background: var(--border);
+    }
+
+    /* ── Form panel ── */
+    .form-panel {
+      padding: 20px;
+      overflow: hidden;
+      background: #F9FAFB;
+    }
+
+    .form-panel-inner {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .fp-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    .fp-card-header {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .fp-card-header-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #D1D5DB;
+    }
+
+    .fp-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .fp-field {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-bottom: 8px;
+    }
+    .fp-field:last-child { margin-bottom: 0; }
+
+    .fp-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: #9CA3AF;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .fp-input {
+      background: #F9FAFB;
+      border: 1.5px solid #E5E7EB;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: var(--text);
+      font-family: inherit;
+      line-height: 1.4;
+    }
+
+    .fp-input.focused {
+      border-color: var(--primary);
+      background: #fff;
+      box-shadow: 0 0 0 2px #EEF2FF;
+    }
+
+    .fp-textarea {
+      background: #F9FAFB;
+      border: 1.5px solid #E5E7EB;
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 11.5px;
+      color: var(--text);
+      font-family: inherit;
+      line-height: 1.55;
+      resize: none;
+    }
+
+    .fp-badge {
+      display: inline-block;
+      background: #EEF2FF;
+      color: var(--primary);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 100px;
+    }
+
+    /* ── CV panel ── */
+    .cv-panel {
+      padding: 24px 28px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    /* Mirror LaTeX output exactly */
+    .cv-doc {
+      font-family: "Inter", sans-serif;
+      font-size: 10px;
+      color: #1a1a1a;
+      line-height: 1.45;
+    }
+
+    .cv-header {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .cv-name {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #111;
+      margin-bottom: 3px;
+    }
+
+    .cv-contact {
+      font-size: 10px;
+      color: #444;
+    }
+
+    .cv-contact a {
+      color: #444;
+      text-decoration: none;
+    }
+
+    .cv-section {
+      margin-top: 9px;
+    }
+
+    .cv-section-heading {
+      font-size: 11.5px;
+      font-weight: 700;
+      font-variant: small-caps;
+      letter-spacing: 0.04em;
+      color: #111;
+      padding-bottom: 2px;
+      border-bottom: 0.6px solid #333;
+      margin-bottom: 6px;
+    }
+
+    .cv-entry {
+      margin-bottom: 6px;
+    }
+
+    .cv-entry-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .cv-entry-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #111;
+    }
+
+    .cv-entry-date {
+      font-size: 9.5px;
+      color: #555;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .cv-entry-sub {
+      font-size: 9.5px;
+      font-style: italic;
+      color: #555;
+      margin-bottom: 3px;
+    }
+
+    .cv-bullets {
+      padding-left: 12px;
+      margin: 0;
+      list-style: disc;
+    }
+
+    .cv-bullets li {
+      font-size: 9.5px;
+      color: #222;
+      line-height: 1.5;
+      margin-bottom: 1px;
+    }
+
+    .cv-skills-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9.5px;
+    }
+
+    .cv-skills-table td {
+      vertical-align: top;
+      padding: 1px 0;
+    }
+
+    .cv-skills-table td:first-child {
+      font-weight: 700;
+      width: 58px;
+      padding-right: 8px;
+      color: #111;
+    }
+
+    .cv-skills-table td:last-child {
+      color: #333;
+    }
+
     /* ── Mobile ── */
-    @media (max-width: 600px) {
+    @media (max-width: 700px) {
       nav { padding: 0 20px; }
       .hero { padding: 100px 20px 60px; }
       .section { padding: 56px 20px; }
       footer { padding: 20px; }
+      .preview-section { padding: 0 16px 60px; }
+      .preview-panels {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1px auto;
+      }
+      .preview-panel-divider {
+        height: 1px;
+        width: 100%;
+      }
+      .cv-panel { display: none; }
     }
   </style>
 </head>
@@ -343,6 +645,7 @@
     </div>
   </nav>
 
+  <!-- ── Hero ── -->
   <section class="hero">
     <h1>Build your CV.<br>Find jobs that <em>fit</em>.</h1>
     <p class="hero-sub">
@@ -355,8 +658,211 @@
     <p class="hero-note">No credit card needed.</p>
   </section>
 
+  <!-- ── Product preview ── -->
+  <div class="preview-section">
+    <p class="preview-label">Fill in your details on the left — get a formatted PDF on the right.</p>
+
+    <div class="preview-browser">
+      <div class="browser-chrome">
+        <div class="browser-dots">
+          <div class="browser-dot"></div>
+          <div class="browser-dot"></div>
+          <div class="browser-dot"></div>
+        </div>
+        <div class="browser-address">cvora.com/app</div>
+      </div>
+
+      <div class="preview-panels">
+
+        <!-- LEFT: Form filling -->
+        <div class="form-panel">
+          <div class="form-panel-inner">
+
+            <!-- Personal info card -->
+            <div class="fp-card">
+              <div class="fp-card-header">
+                Personal Info
+                <div class="fp-card-header-dot"></div>
+              </div>
+              <div class="fp-row">
+                <div class="fp-field">
+                  <div class="fp-label">Full name</div>
+                  <div class="fp-input">Sarah Chen</div>
+                </div>
+                <div class="fp-field">
+                  <div class="fp-label">Location</div>
+                  <div class="fp-input">London, UK</div>
+                </div>
+              </div>
+              <div class="fp-row">
+                <div class="fp-field">
+                  <div class="fp-label">Email</div>
+                  <div class="fp-input">sarah.chen@gmail.com</div>
+                </div>
+                <div class="fp-field">
+                  <div class="fp-label">Phone</div>
+                  <div class="fp-input">+44 7700 900142</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Work experience card -->
+            <div class="fp-card">
+              <div class="fp-card-header">
+                Work Experience
+                <span class="fp-badge">Entry 1 of 2</span>
+              </div>
+              <div class="fp-row">
+                <div class="fp-field">
+                  <div class="fp-label">Position</div>
+                  <div class="fp-input focused">Product Manager</div>
+                </div>
+                <div class="fp-field">
+                  <div class="fp-label">Organisation</div>
+                  <div class="fp-input">TechStart Ltd</div>
+                </div>
+              </div>
+              <div class="fp-row">
+                <div class="fp-field">
+                  <div class="fp-label">Start</div>
+                  <div class="fp-input">Jan 2021</div>
+                </div>
+                <div class="fp-field">
+                  <div class="fp-label">End</div>
+                  <div class="fp-input">Present</div>
+                </div>
+              </div>
+              <div class="fp-field">
+                <div class="fp-label">Description</div>
+                <div class="fp-textarea">Led cross-functional team to ship a mobile payments feature used by 200K+ users
+Defined product roadmap and prioritised backlog based on user research and OKRs
+Reduced time-to-market by 30% through streamlined sprint planning</div>
+              </div>
+            </div>
+
+            <!-- Skills card -->
+            <div class="fp-card">
+              <div class="fp-card-header">
+                Skills
+                <div class="fp-card-header-dot"></div>
+              </div>
+              <div class="fp-field">
+                <div class="fp-label">Technical</div>
+                <div class="fp-input">Python, SQL, Data Analysis</div>
+              </div>
+              <div class="fp-field">
+                <div class="fp-label">Tools</div>
+                <div class="fp-input">Jira, Figma, Confluence, Mixpanel</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="preview-panel-divider"></div>
+
+        <!-- RIGHT: LaTeX CV output -->
+        <div class="cv-panel">
+          <div class="cv-doc">
+
+            <div class="cv-header">
+              <div class="cv-name">Sarah Chen</div>
+              <div class="cv-contact">
+                London, UK &nbsp;·&nbsp; sarah.chen@gmail.com &nbsp;·&nbsp; +44 7700 900142 &nbsp;·&nbsp; linkedin.com/in/sarahchen
+              </div>
+            </div>
+
+            <div class="cv-section">
+              <div class="cv-section-heading">Work Experience</div>
+
+              <div class="cv-entry">
+                <div class="cv-entry-header">
+                  <span class="cv-entry-title">Product Manager</span>
+                  <span class="cv-entry-date">Jan 2021 – Present</span>
+                </div>
+                <div class="cv-entry-sub">TechStart Ltd &nbsp;·&nbsp; London, UK</div>
+                <ul class="cv-bullets">
+                  <li>Led cross-functional team to ship a mobile payments feature used by 200K+ users.</li>
+                  <li>Defined product roadmap and prioritised backlog based on user research and OKRs.</li>
+                  <li>Reduced time-to-market by 30% through streamlined sprint planning processes.</li>
+                </ul>
+              </div>
+
+              <div class="cv-entry">
+                <div class="cv-entry-header">
+                  <span class="cv-entry-title">Business Analyst</span>
+                  <span class="cv-entry-date">Jun 2019 – Dec 2020</span>
+                </div>
+                <div class="cv-entry-sub">ConsultCo &nbsp;·&nbsp; London, UK</div>
+                <ul class="cv-bullets">
+                  <li>Delivered market analysis reports for 12 client engagements across EMEA.</li>
+                  <li>Built dashboards in Tableau tracking KPIs for three product lines.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="cv-section">
+              <div class="cv-section-heading">Education</div>
+              <div class="cv-entry">
+                <div class="cv-entry-header">
+                  <span class="cv-entry-title">Imperial College London</span>
+                  <span class="cv-entry-date">2018 – 2019</span>
+                </div>
+                <div class="cv-entry-sub">MSc Business Analytics &nbsp;·&nbsp; Distinction</div>
+              </div>
+              <div class="cv-entry">
+                <div class="cv-entry-header">
+                  <span class="cv-entry-title">University of Edinburgh</span>
+                  <span class="cv-entry-date">2014 – 2018</span>
+                </div>
+                <div class="cv-entry-sub">BSc Economics &nbsp;·&nbsp; First Class Honours</div>
+              </div>
+            </div>
+
+            <div class="cv-section">
+              <div class="cv-section-heading">Projects</div>
+              <div class="cv-entry">
+                <div class="cv-entry-header">
+                  <span class="cv-entry-title">Demand Forecasting Model</span>
+                  <span class="cv-entry-date">2023</span>
+                </div>
+                <div class="cv-entry-sub">Python &nbsp;·&nbsp; scikit-learn &nbsp;·&nbsp; AWS</div>
+                <ul class="cv-bullets">
+                  <li>Built an LSTM-based forecasting model achieving 94% accuracy on unseen test data.</li>
+                  <li>Deployed as an internal API used by the inventory team to reduce overstock by 18%.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="cv-section">
+              <div class="cv-section-heading">Skills</div>
+              <table class="cv-skills-table">
+                <tr>
+                  <td>Technical:</td>
+                  <td>Python, SQL, Data Analysis, Machine Learning</td>
+                </tr>
+                <tr>
+                  <td>Tools:</td>
+                  <td>Jira, Figma, Confluence, Mixpanel, Tableau</td>
+                </tr>
+              </table>
+            </div>
+
+            <div class="cv-section">
+              <div class="cv-section-heading">Languages</div>
+              <div style="font-size:9.5px;color:#333;">English – Native &nbsp;·&nbsp; Mandarin – Fluent &nbsp;·&nbsp; French – Conversational</div>
+            </div>
+
+          </div>
+        </div>
+
+      </div><!-- /preview-panels -->
+    </div><!-- /preview-browser -->
+  </div><!-- /preview-section -->
+
   <div class="divider"></div>
 
+  <!-- ── Features ── -->
   <section class="section">
     <div class="section-header">
       <p class="section-label">Features</p>
@@ -412,6 +918,7 @@
 
   <div class="divider"></div>
 
+  <!-- ── How it works ── -->
   <section class="section" id="how-it-works">
     <div class="section-header">
       <p class="section-label">How it works</p>

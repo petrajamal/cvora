@@ -1324,6 +1324,8 @@ async def build_one_page_cv(enhanced_profile: dict):
     on 1 page. Tries max_bullets 3 → 2 → 1 for candidates without 7+ years exp.
     Returns (latex_source, pdf_bytes).
     """
+    import copy
+
     long = estimate_cv_overlong(enhanced_profile)
     p = await apply_line_rules(enhanced_profile, long_cv=long)
 
@@ -1332,6 +1334,10 @@ async def build_one_page_cv(enhanced_profile: dict):
         pdf   = compile_to_pdf(latex)
         return latex, pdf
 
+    # Hard rule: < 7 years experience must fit on 1 page.
+    # Reassessed on every call so edits always reflect the correct page count.
+    pdf = None
+    latex = None
     for mb in [3, 2, 1]:
         latex = generate_latex_cv(p, max_bullets_override=mb, compact_skills=True)
         try:
@@ -1341,7 +1347,27 @@ async def build_one_page_cv(enhanced_profile: dict):
         if pages <= 1:
             return latex, pdf
 
-    return latex, pdf  # best effort (still 1 bullet each)
+    # Still 2 pages with 1 bullet each — strip low-priority sections one by one.
+    LOW_PRIORITY = ["extracurriculars", "certifications", "awards", "summary"]
+    p_slim = copy.deepcopy(p)
+    for section in LOW_PRIORITY:
+        if section == "summary":
+            if not p_slim.get("summary"):
+                continue
+            p_slim["summary"] = ""
+        else:
+            if not p_slim.get(section):
+                continue
+            p_slim[section] = []
+        latex = generate_latex_cv(p_slim, max_bullets_override=1, compact_skills=True)
+        try:
+            pdf, pages = compile_to_pdf_checked(latex)
+        except RuntimeError:
+            break
+        if pages <= 1:
+            return latex, pdf
+
+    return latex, pdf  # absolute best effort
 
 
 @app.post("/enhance-description")

@@ -15,6 +15,7 @@ from datetime import datetime
 from latex_gen import (
     generate_latex_cv, compile_to_pdf, compile_to_pdf_checked,
     compute_allow_two_pages, estimate_bullet_lines, last_line_word_count,
+    estimate_cv_overlong,
 )
 
 from database import Base, engine, SessionLocal
@@ -1131,13 +1132,16 @@ async def auto_enhance_cv_descriptions(profile: dict) -> dict:
     return p
 
 
-async def apply_line_rules(profile: dict) -> dict:
+async def apply_line_rules(profile: dict, long_cv: bool = False) -> dict:
     """
-    Rule 1 — if an entry's bullets exceed 6 printed lines total, ask GPT to
-             combine and summarise them into a condensed list that fits within
-             6 lines while preserving all key information.
-    Rule 2 — if a bullet ends with exactly 1 word on its last line (widow),
-             ask GPT to shorten it by 1 word. Repeated up to 3 passes.
+    Rule 1  — if an entry's bullets exceed 6 printed lines total, ask GPT to
+              combine and summarise them into a condensed list that fits within
+              6 lines while preserving all key information.
+    Rule 1b — (long_cv only) pair-combine 1-line bullets in entries with ≥6
+              single-line bullets, reducing bullet count by ~half.
+    Rule 2  — if a bullet ends with exactly 1 word on its last line (widow),
+              ask GPT to shorten it by 1 word (or 2 words when long_cv).
+              Repeated up to 3 passes.
     """
     import copy
     from openai import AsyncOpenAI
@@ -1207,6 +1211,70 @@ async def apply_line_rules(profile: dict) -> dict:
         except Exception:
             pass  # keep originals on failure
 
+    # ── Rule 1b: pair-combine 1-line bullets when long_cv ────────────────────
+    if long_cv:
+        pair_entries = []  # [(entry_ref, pairs_list, setter)]
+        for section in SECTIONS:
+            for entry in (p.get(section) or []):
+                desc = entry.get("description")
+                if not isinstance(desc, list) or len(desc) < 6:
+                    continue
+                if all(estimate_bullet_lines(b) == 1 for b in desc):
+                    # Build pairs: (b0,b1), (b2,b3), ... odd last stays alone
+                    pairs = [(desc[i], desc[i + 1]) for i in range(0, len(desc) - 1, 2)]
+                    leftover = desc[len(pairs) * 2] if len(desc) % 2 == 1 else None
+                    pair_entries.append(
+                        (pairs, leftover, lambda v, e=entry: e.__setitem__("description", v))
+                    )
+
+        if pair_entries:
+            sections_text = ""
+            for ei, (pairs, _, _setter) in enumerate(pair_entries):
+                pair_lines = "\n".join(
+                    f"PAIR {pi + 1}: {b1} | {b2}"
+                    for pi, (b1, b2) in enumerate(pairs)
+                )
+                sections_text += f"ENTRY {ei + 1}:\n{pair_lines}\n\n"
+
+            prompt = (
+                "Each ENTRY below has bullets that each fit on exactly one line. "
+                "Combine each PAIR into a single concise bullet of at most 100 characters, "
+                "preserving the meaning of both. "
+                "Return exactly in this format:\n"
+                "ENTRY 1:\nPAIR 1: combined bullet\nPAIR 2: combined bullet\n..."
+                "\n\n" + sections_text.strip()
+            )
+            try:
+                resp = await client.responses.create(model="gpt-4o-mini", input=prompt)
+                current_entry_idx = None
+                current_pairs: list[str] = []
+
+                def _flush_pairs():
+                    if current_entry_idx is None:
+                        return
+                    if 0 <= current_entry_idx < len(pair_entries):
+                        pairs_orig, leftover, setter = pair_entries[current_entry_idx]
+                        result = list(current_pairs[:len(pairs_orig)])
+                        if leftover is not None:
+                            result.append(leftover)
+                        if result:
+                            setter(result)
+
+                for line in resp.output_text.strip().splitlines():
+                    line = line.strip()
+                    em = re.match(r"^ENTRY\s+(\d+):?$", line, re.IGNORECASE)
+                    if em:
+                        _flush_pairs()
+                        current_entry_idx = int(em.group(1)) - 1
+                        current_pairs = []
+                    else:
+                        pm = re.match(r"^PAIR\s+\d+:\s*(.+)$", line, re.IGNORECASE)
+                        if pm and current_entry_idx is not None:
+                            current_pairs.append(pm.group(1).strip())
+                _flush_pairs()
+            except Exception:
+                pass  # keep originals on failure
+
     # ── Rule 2: fix widow words (up to 3 passes) ─────────────────────────────
     for _pass in range(3):
         widow_items: list[tuple] = []
@@ -1215,7 +1283,7 @@ async def apply_line_rules(profile: dict) -> dict:
             for entry in (p.get(section) or []):
                 desc = entry.get("description") or []
                 for i, bullet in enumerate(desc):
-                    if isinstance(bullet, str) and last_line_word_count(bullet) == 1:
+                    if isinstance(bullet, str) and last_line_word_count(bullet) <= (2 if long_cv else 1):
                         widow_items.append(
                             (bullet, lambda v, d=desc, j=i: d.__setitem__(j, v))
                         )
@@ -1226,10 +1294,11 @@ async def apply_line_rules(profile: dict) -> dict:
         entries = "\n\n".join(
             f"{i+1}. {text}" for i, (text, _) in enumerate(widow_items)
         )
+        shorten_by = "2 words" if long_cv else "1 word"
         prompt = (
-            "Each numbered item is a CV bullet point that has exactly one trailing word "
+            f"Each numbered item is a CV bullet point that has {shorten_by} trailing "
             "on a new line when typeset (a widow). Remove the fewest words possible — "
-            "ideally just one — so the bullet fits on one fewer line. "
+            f"ideally just {shorten_by} — so the bullet fits on one fewer line. "
             "Do not change meaning. Return one line per item in the same numbered format.\n\n"
             + entries
         )
@@ -1255,7 +1324,8 @@ async def build_one_page_cv(enhanced_profile: dict):
     on 1 page. Tries max_bullets 3 → 2 → 1 for candidates without 7+ years exp.
     Returns (latex_source, pdf_bytes).
     """
-    p = await apply_line_rules(enhanced_profile)
+    long = estimate_cv_overlong(enhanced_profile)
+    p = await apply_line_rules(enhanced_profile, long_cv=long)
 
     if compute_allow_two_pages(p):
         latex = generate_latex_cv(p)

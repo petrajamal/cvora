@@ -561,6 +561,7 @@ function createEntryCard(title, innerHtml) {
   return `
     <div class="entry-card">
       <div class="inline-actions">
+        <button type="button" class="entry-visibility-btn" title="Hide from CV" aria-label="Toggle visibility">&#128065;</button>
         <button type="button" class="remove-entry-btn">Remove</button>
       </div>
       <h4>${title}</h4>
@@ -573,6 +574,18 @@ function attachRemoveHandlers(containerId) {
   const container = document.getElementById(containerId);
   container.querySelectorAll(".remove-entry-btn").forEach((btn) => {
     btn.onclick = () => btn.closest(".entry-card").remove();
+  });
+  container.querySelectorAll(".entry-visibility-btn").forEach((btn) => {
+    if (btn._visWired) return;
+    btn._visWired = true;
+    btn.onclick = () => {
+      const card = btn.closest(".entry-card");
+      const nowHidden = card.dataset.hidden !== "true";
+      card.dataset.hidden = nowHidden ? "true" : "false";
+      btn.innerHTML = nowHidden ? "&#128683;" : "&#128065;";
+      btn.title = nowHidden ? "Show in CV" : "Hide from CV";
+      card.style.opacity = nowHidden ? "0.45" : "";
+    };
   });
 }
 
@@ -951,6 +964,9 @@ function buildCandidateProfile() {
       technical: [...technicalSkills],
       tools: [...toolsSkills],
       soft: [...softSkills],
+      technical_hidden: document.getElementById("toggleTechnicalSkills")?.dataset.hidden === "true",
+      tools_hidden: document.getElementById("toggleToolsSkills")?.dataset.hidden === "true",
+      soft_hidden: document.getElementById("toggleSoftSkills")?.dataset.hidden === "true",
     },
     setup: {
       user_type: document.getElementById("userType")?.value || "",
@@ -964,14 +980,15 @@ function buildCandidateProfile() {
       const language = getTextValue(".language-name", card);
       const proficiency = card.querySelector(".language-level")?.value || "";
       if (!language) return null;
-      return { language, proficiency };
+      return { language, proficiency, hidden: card.dataset.hidden === "true" };
     }),
+    languages_hidden: document.getElementById("toggleLanguages")?.dataset.hidden === "true",
     certifications: collectEntries("certificationEntries", (card) => {
       const title = getTextValue(".certification-title", card);
       const date = getTextValue(".certification-date", card);
       const organization = getTextValue(".certification-organization", card);
       if (!title) return null;
-      return { title, date: date || null, organization: organization || null };
+      return { title, date: date || null, organization: organization || null, hidden: card.dataset.hidden === "true" };
     }),
     work_experience: collectEntries("experienceEntries", (card) => {
       const organization = getTextValue(".experience-organization", card);
@@ -982,7 +999,7 @@ function buildCandidateProfile() {
       const location     = getTextValue(".experience-location", card);
       const description  = splitBullets(getTextValue(".experience-description", card));
       if (!organization && !position) return null;
-      return { organization, position, start_date, end_date, location: location || null, description };
+      return { organization, position, start_date, end_date, location: location || null, description, hidden: card.dataset.hidden === "true" };
     }),
     education: collectEntries("educationEntries", (card) => {
       const institution = getTextValue(".education-institution", card);
@@ -1012,7 +1029,7 @@ function buildCandidateProfile() {
 
       const description = splitBullets(getTextValue(".education-description", card));
       if (!institution && !degree && !start_date && !end_date) return null;
-      return { institution, degree, start_date, end_date, field_of_study: field_of_study || null, gpa, description: description.length ? description : null };
+      return { institution, degree, start_date, end_date, field_of_study: field_of_study || null, gpa, description: description.length ? description : null, hidden: card.dataset.hidden === "true" };
     }),
     projects: collectEntries("projectEntries", (card) => {
       const title = getTextValue(".project-title", card);
@@ -1034,6 +1051,7 @@ function buildCandidateProfile() {
         description,
         start_date: start_date || null,
         end_date: end_date || null,
+        hidden: card.dataset.hidden === "true",
       };
     }),
     extracurriculars: collectEntries("extracurricularEntries", (card) => {
@@ -1049,6 +1067,7 @@ function buildCandidateProfile() {
         organization,
         date: date || null,
         description,
+        hidden: card.dataset.hidden === "true",
       };
     }),
     awards: collectEntries("awardEntries", (card) => {
@@ -1056,7 +1075,7 @@ function buildCandidateProfile() {
       const date = getTextValue(".award-date", card);
       const institution = getTextValue(".award-institution", card);
       if (!title) return null;
-      return { title, date: date || null, institution: institution || null };
+      return { title, date: date || null, institution: institution || null, hidden: card.dataset.hidden === "true" };
     }),
     section_labels: Object.keys(sectionLabels).length ? { ...sectionLabels } : undefined,
   };
@@ -1705,6 +1724,24 @@ try {
   setupSkillInput("technicalSkillInput", "technicalSkillsContainer", technicalSkills);
   setupSkillInput("toolsSkillInput", "toolsSkillsContainer", toolsSkills);
   setupSkillInput("softSkillInput", "softSkillsContainer", softSkills);
+
+  // ── Section-level visibility toggles (skills + languages) ─────────────────
+  ["toggleTechnicalSkills", "toggleToolsSkills", "toggleSoftSkills", "toggleLanguages"].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.onclick = () => {
+      const nowHidden = btn.dataset.hidden !== "true";
+      btn.dataset.hidden = nowHidden ? "true" : "false";
+      btn.innerHTML = nowHidden ? "&#128683;" : "&#128065;";
+      btn.title = nowHidden ? "Show in CV" : "Hide from CV";
+      const targetId = btn.dataset.target;
+      if (targetId) {
+        const target = document.getElementById(targetId);
+        if (target) target.style.opacity = nowHidden ? "0.45" : "";
+      }
+    };
+  });
+
   setupSectionRenames();
   addEducationEntry();
   addLinkEntry();
@@ -2267,6 +2304,12 @@ window.editBuilderCv = async function (jobId) {
       if (descEl && edu.description) {
         descEl.value = Array.isArray(edu.description) ? edu.description.join("\n") : (edu.description || "");
       }
+      if (edu.hidden) {
+        card.dataset.hidden = "true";
+        const visBtn = card.querySelector(".entry-visibility-btn");
+        if (visBtn) { visBtn.innerHTML = "&#128683;"; visBtn.title = "Show in CV"; }
+        card.style.opacity = "0.45";
+      }
     });
 
     // Work experience
@@ -2286,6 +2329,12 @@ window.editBuilderCv = async function (jobId) {
       }
       card.querySelector(".experience-location").value = exp.location || "";
       card.querySelector(".experience-description").value = (exp.description || []).join("\n");
+      if (exp.hidden) {
+        card.dataset.hidden = "true";
+        const visBtn = card.querySelector(".entry-visibility-btn");
+        if (visBtn) { visBtn.innerHTML = "&#128683;"; visBtn.title = "Show in CV"; }
+        card.style.opacity = "0.45";
+      }
     });
 
     // Projects
@@ -2306,6 +2355,12 @@ window.editBuilderCv = async function (jobId) {
         card.querySelector(".project-link").value = proj.link;
       }
       card.querySelector(".project-description").value = (proj.description || []).join("\n");
+      if (proj.hidden) {
+        card.dataset.hidden = "true";
+        const visBtn = card.querySelector(".entry-visibility-btn");
+        if (visBtn) { visBtn.innerHTML = "&#128683;"; visBtn.title = "Show in CV"; }
+        card.style.opacity = "0.45";
+      }
     });
 
     // Extracurriculars
@@ -2319,6 +2374,12 @@ window.editBuilderCv = async function (jobId) {
       card.querySelector(".extracurricular-organization").value = ex.organization || "";
       card.querySelector(".extracurricular-date").value = ex.date || "";
       card.querySelector(".extracurricular-description").value = (ex.description || []).join("\n");
+      if (ex.hidden) {
+        card.dataset.hidden = "true";
+        const visBtn = card.querySelector(".entry-visibility-btn");
+        if (visBtn) { visBtn.innerHTML = "&#128683;"; visBtn.title = "Show in CV"; }
+        card.style.opacity = "0.45";
+      }
     });
 
     // Certifications
@@ -2330,6 +2391,29 @@ window.editBuilderCv = async function (jobId) {
       card.querySelector(".certification-title").value = cert.title || "";
       card.querySelector(".certification-date").value = cert.date || "";
       card.querySelector(".certification-organization").value = cert.organization || "";
+      if (cert.hidden) {
+        card.dataset.hidden = "true";
+        const visBtn = card.querySelector(".entry-visibility-btn");
+        if (visBtn) { visBtn.innerHTML = "&#128683;"; visBtn.title = "Show in CV"; }
+        card.style.opacity = "0.45";
+      }
+    });
+
+    // Awards
+    document.getElementById("awardEntries").innerHTML = "";
+    (p.awards || []).forEach(award => {
+      addAwardEntry();
+      const card = document.querySelector("#awardEntries .entry-card:last-child");
+      if (!card) return;
+      card.querySelector(".award-title").value = award.title || "";
+      card.querySelector(".award-date").value = award.date || "";
+      card.querySelector(".award-institution").value = award.institution || "";
+      if (award.hidden) {
+        card.dataset.hidden = "true";
+        const visBtn = card.querySelector(".entry-visibility-btn");
+        if (visBtn) { visBtn.innerHTML = "&#128683;"; visBtn.title = "Show in CV"; }
+        card.style.opacity = "0.45";
+      }
     });
 
     // Languages
@@ -2342,8 +2426,27 @@ window.editBuilderCv = async function (jobId) {
         card.querySelector(".language-name").value = lang.language || "";
         const lvl = card.querySelector(".language-level");
         if (lvl) lvl.value = lang.proficiency || "";
+        if (lang.hidden) {
+          card.dataset.hidden = "true";
+          const visBtn = card.querySelector(".entry-visibility-btn");
+          if (visBtn) { visBtn.innerHTML = "&#128683;"; visBtn.title = "Show in CV"; }
+          card.style.opacity = "0.45";
+        }
       }
     });
+
+    // Restore section-level visibility toggles
+    const _restoreToggle = (id, hidden) => {
+      if (!hidden) return;
+      const btn = document.getElementById(id);
+      if (btn) btn.click();
+    };
+    if (p.skill_groups) {
+      _restoreToggle("toggleTechnicalSkills", p.skill_groups.technical_hidden);
+      _restoreToggle("toggleToolsSkills", p.skill_groups.tools_hidden);
+      _restoreToggle("toggleSoftSkills", p.skill_groups.soft_hidden);
+    }
+    _restoreToggle("toggleLanguages", p.languages_hidden);
 
     // Scroll to top of builder
     document.getElementById("builderSection")?.scrollIntoView({ behavior: "smooth", block: "start" });

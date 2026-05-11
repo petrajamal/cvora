@@ -1877,17 +1877,29 @@
 
             <h3 data-section-key="skills">Skills</h3>
 
-            <label>Technical Skills</label>
-            <input id="technicalSkillInput" placeholder="Type skill and press Enter" />
-            <div id="technicalSkillsContainer"></div>
+            <label style="display:flex;align-items:center;gap:6px;">Technical Skills
+              <button type="button" id="toggleTechnicalSkills" class="entry-visibility-btn section-visibility-btn" data-target="technicalSkillsSection" title="Hide from CV">&#128065;</button>
+            </label>
+            <div id="technicalSkillsSection">
+              <input id="technicalSkillInput" placeholder="Type skill and press Enter" />
+              <div id="technicalSkillsContainer"></div>
+            </div>
 
-            <label>Tools &amp; Technologies</label>
-            <input id="toolsSkillInput" placeholder="Type tool and press Enter" />
-            <div id="toolsSkillsContainer"></div>
+            <label style="display:flex;align-items:center;gap:6px;">Tools &amp; Technologies
+              <button type="button" id="toggleToolsSkills" class="entry-visibility-btn section-visibility-btn" data-target="toolsSkillsSection" title="Hide from CV">&#128065;</button>
+            </label>
+            <div id="toolsSkillsSection">
+              <input id="toolsSkillInput" placeholder="Type tool and press Enter" />
+              <div id="toolsSkillsContainer"></div>
+            </div>
 
-            <label>Soft Skills</label>
-            <input id="softSkillInput" placeholder="Type soft skill and press Enter" />
-            <div id="softSkillsContainer"></div>
+            <label style="display:flex;align-items:center;gap:6px;">Soft Skills
+              <button type="button" id="toggleSoftSkills" class="entry-visibility-btn section-visibility-btn" data-target="softSkillsSection" title="Hide from CV">&#128065;</button>
+            </label>
+            <div id="softSkillsSection">
+              <input id="softSkillInput" placeholder="Type soft skill and press Enter" />
+              <div id="softSkillsContainer"></div>
+            </div>
 
             <h3 data-section-key="extracurriculars">Extracurricular Activities &amp; Leadership</h3>
             <div class="subsection-header"><span>Add if applicable</span></div>
@@ -1904,10 +1916,14 @@
             <div id="awardEntries"></div>
             <button type="button" id="addAwardBtn" class="add-entry-btn">+ Add Award</button>
 
-            <h3 data-section-key="languages">Languages</h3>
-            <div class="subsection-header"><span>Add if applicable</span></div>
-            <div id="languageEntries"></div>
-            <button type="button" id="addLanguageBtn" class="add-entry-btn">+ Add Language</button>
+            <h3 data-section-key="languages" style="display:flex;align-items:center;gap:6px;">Languages
+              <button type="button" id="toggleLanguages" class="entry-visibility-btn section-visibility-btn" data-target="languagesSection" title="Hide from CV">&#128065;</button>
+            </h3>
+            <div id="languagesSection">
+              <div class="subsection-header"><span>Add if applicable</span></div>
+              <div id="languageEntries"></div>
+              <button type="button" id="addLanguageBtn" class="add-entry-btn">+ Add Language</button>
+            </div>
 
             <h3>Job Search Preferences</h3>
 

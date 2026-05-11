@@ -74,6 +74,50 @@ def last_line_word_count(text: str) -> int:
     return count
 
 
+_LINES_PER_PAGE = 52  # usable content lines for 10pt A4 with 0.55in/0.65in margins
+
+
+def estimate_cv_overlong(profile: dict) -> bool:
+    """Heuristic: True if profile is likely to overflow one printed page."""
+    lines = 4.0  # header + surrounding spacing
+
+    summary = (profile.get("summary") or "").strip()
+    if summary:
+        lines += 2.5 + estimate_bullet_lines(summary)
+
+    sg = profile.get("skill_groups") or {}
+    for section in ("work_experience", "education", "projects", "extracurriculars"):
+        entries = [e for e in (profile.get(section) or []) if not e.get("hidden")]
+        if not entries:
+            continue
+        lines += 2.0
+        for entry in entries:
+            lines += 1.5
+            for bullet in (entry.get("description") or []):
+                lines += estimate_bullet_lines(bullet)
+            lines += 0.5
+
+    skill_rows = sum(
+        1 for k in ("technical", "tools", "soft")
+        if sg.get(k) and not sg.get(f"{k}_hidden")
+    )
+    if skill_rows or profile.get("skills"):
+        lines += 2.0 + max(skill_rows, 1)
+
+    certs = [c for c in (profile.get("certifications") or []) if not c.get("hidden")]
+    if certs:
+        lines += 2.0 + len(certs) * 0.9
+
+    awards = [a for a in (profile.get("awards") or []) if not a.get("hidden")]
+    if awards:
+        lines += 2.0 + len(awards) * 0.9
+
+    if (profile.get("languages") or []) and not profile.get("languages_hidden"):
+        lines += 2.5
+
+    return lines > _LINES_PER_PAGE
+
+
 _MONTH_MAP = {
     "jan": 1, "january": 1,
     "feb": 2, "february": 2,
@@ -287,6 +331,7 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None) ->
     # ── Education ──────────────────────────────────────────────────────────────
     education_blocks = []
     for edu in education:
+        if edu.get("hidden"): continue
         institution = latex_escape(edu.get("institution", ""))
         degree      = latex_escape(edu.get("degree", ""))
         field       = latex_escape(edu.get("field_of_study") or "")
@@ -314,6 +359,7 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None) ->
     # ── Work Experience ────────────────────────────────────────────────────────
     experience_blocks = []
     for exp in work_experience:
+        if exp.get("hidden"): continue
         org      = latex_escape(exp.get("organization") or exp.get("institution_name") or "")
         position = latex_escape(exp.get("position", ""))
         loc      = latex_escape(exp.get("location") or "")
@@ -335,6 +381,7 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None) ->
     # ── Projects ───────────────────────────────────────────────────────────────
     project_blocks = []
     for proj in projects:
+        if proj.get("hidden"): continue
         title        = latex_escape(proj.get("title") or proj.get("name") or "")
         role         = latex_escape(proj.get("role") or "")
         technologies = proj.get("technologies") or []
@@ -365,6 +412,7 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None) ->
     # ── Extracurriculars ───────────────────────────────────────────────────────
     extracurricular_blocks = []
     for item in extracurriculars:
+        if item.get("hidden"): continue
         title        = latex_escape(item.get("title", ""))
         role         = latex_escape(item.get("role", ""))
         organization = latex_escape(item.get("organization", ""))
@@ -383,6 +431,7 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None) ->
     # ── Certifications ─────────────────────────────────────────────────────────
     certification_lines = []
     for cert in certifications:
+        if isinstance(cert, dict) and cert.get("hidden"): continue
         if isinstance(cert, dict):
             t   = latex_escape(cert.get("title", ""))
             d   = latex_escape(cert.get("date") or "")
@@ -396,6 +445,7 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None) ->
     # ── Awards ─────────────────────────────────────────────────────────────────
     award_lines = []
     for award in awards:
+        if isinstance(award, dict) and award.get("hidden"): continue
         if isinstance(award, dict):
             t    = latex_escape(award.get("title", ""))
             d    = latex_escape(award.get("date") or "")
@@ -408,15 +458,17 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None) ->
 
     # ── Languages ──────────────────────────────────────────────────────────────
     language_lines = []
-    for lang in languages:
-        if isinstance(lang, dict):
-            name_lang = latex_escape(lang.get("language", ""))
-            level     = latex_escape(lang.get("proficiency") or "")
-            line = " -- ".join(p for p in [name_lang, level] if p)
-            if line:
-                language_lines.append(line)
-        else:
-            language_lines.append(latex_escape(lang))
+    if not profile.get("languages_hidden"):
+        for lang in languages:
+            if isinstance(lang, dict) and lang.get("hidden"): continue
+            if isinstance(lang, dict):
+                name_lang = latex_escape(lang.get("language", ""))
+                level     = latex_escape(lang.get("proficiency") or "")
+                line = " -- ".join(p for p in [name_lang, level] if p)
+                if line:
+                    language_lines.append(line)
+            else:
+                language_lines.append(latex_escape(lang))
 
     # ── Font / margins ─────────────────────────────────────────────────────────
     font_size   = "10pt"
@@ -430,17 +482,17 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None) ->
     soft_skills      = skill_groups.get("soft")      or []
 
     skills_rows = []
-    if technical_skills:
+    if technical_skills and not skill_groups.get("technical_hidden"):
         skills_rows.append(
             f"\\textbf{{Technical:}} & "
             f"{', '.join(latex_escape(s) for s in technical_skills if s)} \\\\"
         )
-    if tools_skills:
+    if tools_skills and not skill_groups.get("tools_hidden"):
         skills_rows.append(
             f"\\textbf{{Tools:}} & "
             f"{', '.join(latex_escape(s) for s in tools_skills if s)} \\\\"
         )
-    if soft_skills:
+    if soft_skills and not skill_groups.get("soft_hidden"):
         skills_rows.append(
             f"\\textbf{{Soft Skills:}} & "
             f"{', '.join(latex_escape(s) for s in soft_skills if s)} \\\\"

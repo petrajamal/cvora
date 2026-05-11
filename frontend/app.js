@@ -557,11 +557,22 @@ function sanitizeInput(val, maxLen = 500) {
   return String(val ?? "").replace(/[<>'"`;]/g, "").trim().slice(0, maxLen);
 }
 
+const _EYE_OPEN = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const _EYE_OFF  = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+
+function _applyVisHidden(btn, card, nowHidden) {
+  card.dataset.hidden = nowHidden ? "true" : "false";
+  btn.innerHTML = nowHidden ? _EYE_OFF : _EYE_OPEN;
+  btn.title = nowHidden ? "Show in CV" : "Hide from CV";
+  btn.classList.toggle("is-hidden", nowHidden);
+  card.style.opacity = nowHidden ? "0.45" : "";
+}
+
 function createEntryCard(title, innerHtml) {
   return `
     <div class="entry-card">
       <div class="inline-actions">
-        <button type="button" class="entry-visibility-btn" title="Hide from CV" aria-label="Toggle visibility">&#128065;</button>
+        <button type="button" class="entry-visibility-btn" title="Hide from CV" aria-label="Toggle visibility">${_EYE_OPEN}</button>
         <button type="button" class="remove-entry-btn">Remove</button>
       </div>
       <h4>${title}</h4>
@@ -580,11 +591,7 @@ function attachRemoveHandlers(containerId) {
     btn._visWired = true;
     btn.onclick = () => {
       const card = btn.closest(".entry-card");
-      const nowHidden = card.dataset.hidden !== "true";
-      card.dataset.hidden = nowHidden ? "true" : "false";
-      btn.innerHTML = nowHidden ? "&#128683;" : "&#128065;";
-      btn.title = nowHidden ? "Show in CV" : "Hide from CV";
-      card.style.opacity = nowHidden ? "0.45" : "";
+      _applyVisHidden(btn, card, card.dataset.hidden !== "true");
     };
   });
 }
@@ -1729,16 +1736,15 @@ try {
   ["toggleTechnicalSkills", "toggleToolsSkills", "toggleSoftSkills", "toggleLanguages"].forEach(id => {
     const btn = document.getElementById(id);
     if (!btn) return;
+    btn.innerHTML = _EYE_OPEN;
     btn.onclick = () => {
       const nowHidden = btn.dataset.hidden !== "true";
       btn.dataset.hidden = nowHidden ? "true" : "false";
-      btn.innerHTML = nowHidden ? "&#128683;" : "&#128065;";
+      btn.innerHTML = nowHidden ? _EYE_OFF : _EYE_OPEN;
       btn.title = nowHidden ? "Show in CV" : "Hide from CV";
-      const targetId = btn.dataset.target;
-      if (targetId) {
-        const target = document.getElementById(targetId);
-        if (target) target.style.opacity = nowHidden ? "0.45" : "";
-      }
+      btn.classList.toggle("is-hidden", nowHidden);
+      const target = document.getElementById(btn.dataset.target);
+      if (target) target.style.opacity = nowHidden ? "0.45" : "";
     };
   });
 
@@ -2307,7 +2313,7 @@ window.editBuilderCv = async function (jobId) {
       if (edu.hidden) {
         card.dataset.hidden = "true";
         const visBtn = card.querySelector(".entry-visibility-btn");
-        if (visBtn) { visBtn.innerHTML = "&#128683;"; visBtn.title = "Show in CV"; }
+        if (visBtn) { _applyVisHidden(visBtn, visBtn.closest(".entry-card"), true); }
         card.style.opacity = "0.45";
       }
     });
@@ -2332,7 +2338,7 @@ window.editBuilderCv = async function (jobId) {
       if (exp.hidden) {
         card.dataset.hidden = "true";
         const visBtn = card.querySelector(".entry-visibility-btn");
-        if (visBtn) { visBtn.innerHTML = "&#128683;"; visBtn.title = "Show in CV"; }
+        if (visBtn) { _applyVisHidden(visBtn, visBtn.closest(".entry-card"), true); }
         card.style.opacity = "0.45";
       }
     });
@@ -2358,7 +2364,7 @@ window.editBuilderCv = async function (jobId) {
       if (proj.hidden) {
         card.dataset.hidden = "true";
         const visBtn = card.querySelector(".entry-visibility-btn");
-        if (visBtn) { visBtn.innerHTML = "&#128683;"; visBtn.title = "Show in CV"; }
+        if (visBtn) { _applyVisHidden(visBtn, visBtn.closest(".entry-card"), true); }
         card.style.opacity = "0.45";
       }
     });
@@ -2377,7 +2383,7 @@ window.editBuilderCv = async function (jobId) {
       if (ex.hidden) {
         card.dataset.hidden = "true";
         const visBtn = card.querySelector(".entry-visibility-btn");
-        if (visBtn) { visBtn.innerHTML = "&#128683;"; visBtn.title = "Show in CV"; }
+        if (visBtn) { _applyVisHidden(visBtn, visBtn.closest(".entry-card"), true); }
         card.style.opacity = "0.45";
       }
     });
@@ -2394,7 +2400,7 @@ window.editBuilderCv = async function (jobId) {
       if (cert.hidden) {
         card.dataset.hidden = "true";
         const visBtn = card.querySelector(".entry-visibility-btn");
-        if (visBtn) { visBtn.innerHTML = "&#128683;"; visBtn.title = "Show in CV"; }
+        if (visBtn) { _applyVisHidden(visBtn, visBtn.closest(".entry-card"), true); }
         card.style.opacity = "0.45";
       }
     });
@@ -2411,7 +2417,7 @@ window.editBuilderCv = async function (jobId) {
       if (award.hidden) {
         card.dataset.hidden = "true";
         const visBtn = card.querySelector(".entry-visibility-btn");
-        if (visBtn) { visBtn.innerHTML = "&#128683;"; visBtn.title = "Show in CV"; }
+        if (visBtn) { _applyVisHidden(visBtn, visBtn.closest(".entry-card"), true); }
         card.style.opacity = "0.45";
       }
     });
@@ -2429,7 +2435,7 @@ window.editBuilderCv = async function (jobId) {
         if (lang.hidden) {
           card.dataset.hidden = "true";
           const visBtn = card.querySelector(".entry-visibility-btn");
-          if (visBtn) { visBtn.innerHTML = "&#128683;"; visBtn.title = "Show in CV"; }
+          if (visBtn) { _applyVisHidden(visBtn, visBtn.closest(".entry-card"), true); }
           card.style.opacity = "0.45";
         }
       }

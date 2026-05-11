@@ -659,8 +659,28 @@
     .inline-actions {
       display: flex;
       justify-content: flex-end;
+      gap: 8px;
       margin-bottom: 6px;
     }
+
+    .entry-visibility-btn {
+      background: transparent !important;
+      color: #4F46E5 !important;
+      border: 1.5px solid #4F46E5 !important;
+      padding: 3px 7px !important;
+      font-size: 10px !important;
+      border-radius: var(--radius-xs) !important;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      line-height: 1;
+      box-shadow: none !important;
+    }
+    .entry-visibility-btn.is-hidden {
+      color: #9CA3AF !important;
+      border-color: #D1D5DB !important;
+    }
+    .entry-visibility-btn:hover { opacity: 0.75; }
 
     .remove-entry-btn {
       background: transparent !important;
@@ -1878,7 +1898,7 @@
             <h3 data-section-key="skills">Skills</h3>
 
             <label style="display:flex;align-items:center;gap:6px;">Technical Skills
-              <button type="button" id="toggleTechnicalSkills" class="entry-visibility-btn section-visibility-btn" data-target="technicalSkillsSection" title="Hide from CV">&#128065;</button>
+              <button type="button" id="toggleTechnicalSkills" class="entry-visibility-btn section-visibility-btn" data-target="technicalSkillsSection" title="Hide from CV"></button>
             </label>
             <div id="technicalSkillsSection">
               <input id="technicalSkillInput" placeholder="Type skill and press Enter" />
@@ -1886,7 +1906,7 @@
             </div>
 
             <label style="display:flex;align-items:center;gap:6px;">Tools &amp; Technologies
-              <button type="button" id="toggleToolsSkills" class="entry-visibility-btn section-visibility-btn" data-target="toolsSkillsSection" title="Hide from CV">&#128065;</button>
+              <button type="button" id="toggleToolsSkills" class="entry-visibility-btn section-visibility-btn" data-target="toolsSkillsSection" title="Hide from CV"></button>
             </label>
             <div id="toolsSkillsSection">
               <input id="toolsSkillInput" placeholder="Type tool and press Enter" />
@@ -1894,7 +1914,7 @@
             </div>
 
             <label style="display:flex;align-items:center;gap:6px;">Soft Skills
-              <button type="button" id="toggleSoftSkills" class="entry-visibility-btn section-visibility-btn" data-target="softSkillsSection" title="Hide from CV">&#128065;</button>
+              <button type="button" id="toggleSoftSkills" class="entry-visibility-btn section-visibility-btn" data-target="softSkillsSection" title="Hide from CV"></button>
             </label>
             <div id="softSkillsSection">
               <input id="softSkillInput" placeholder="Type soft skill and press Enter" />
@@ -1917,7 +1937,7 @@
             <button type="button" id="addAwardBtn" class="add-entry-btn">+ Add Award</button>
 
             <h3 data-section-key="languages" style="display:flex;align-items:center;gap:6px;">Languages
-              <button type="button" id="toggleLanguages" class="entry-visibility-btn section-visibility-btn" data-target="languagesSection" title="Hide from CV">&#128065;</button>
+              <button type="button" id="toggleLanguages" class="entry-visibility-btn section-visibility-btn" data-target="languagesSection" title="Hide from CV"></button>
             </h3>
             <div id="languagesSection">
               <div class="subsection-header"><span>Add if applicable</span></div>

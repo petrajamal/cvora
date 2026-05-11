@@ -1333,7 +1333,7 @@ async def build_one_page_cv(enhanced_profile: dict):
         return latex, pdf
 
     for mb in [3, 2, 1]:
-        latex = generate_latex_cv(p, max_bullets_override=mb)
+        latex = generate_latex_cv(p, max_bullets_override=mb, compact_skills=True)
         try:
             pdf, pages = compile_to_pdf_checked(latex)
         except RuntimeError:

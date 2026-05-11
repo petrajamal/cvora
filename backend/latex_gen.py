@@ -280,7 +280,7 @@ def compute_allow_two_pages(profile: dict) -> bool:
     return (total // 12) >= 7 and len(work_experience) >= 3
 
 
-def generate_latex_cv(profile: dict, max_bullets_override: int | None = None) -> str:
+def generate_latex_cv(profile: dict, max_bullets_override: int | None = None, compact_skills: bool = False) -> str:
     name     = latex_escape(profile.get("full_name", ""))
     links    = profile.get("links", []) or []
     summary  = latex_escape(profile.get("summary", ""))
@@ -481,39 +481,56 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None) ->
     tools_skills     = skill_groups.get("tools")     or []
     soft_skills      = skill_groups.get("soft")      or []
 
-    skills_rows = []
-    if technical_skills and not skill_groups.get("technical_hidden"):
-        skills_rows.append(
-            f"\\textbf{{Technical:}} & "
-            f"{', '.join(latex_escape(s) for s in technical_skills if s)} \\\\"
-        )
-    if tools_skills and not skill_groups.get("tools_hidden"):
-        skills_rows.append(
-            f"\\textbf{{Tools:}} & "
-            f"{', '.join(latex_escape(s) for s in tools_skills if s)} \\\\"
-        )
-    if soft_skills and not skill_groups.get("soft_hidden"):
-        skills_rows.append(
-            f"\\textbf{{Soft Skills:}} & "
-            f"{', '.join(latex_escape(s) for s in soft_skills if s)} \\\\"
-        )
-    if not skills_rows and skills:
-        skills_line = ", ".join(latex_escape(sk) for sk in skills if sk)
-        skills_rows.append(f"\\textbf{{Skills:}} & {skills_line} \\\\")
+    # ── Collect visible skill lists ────────────────────────────────────────────
+    vis_technical = (technical_skills if not skill_groups.get("technical_hidden") else [])
+    vis_tools     = (tools_skills     if not skill_groups.get("tools_hidden")     else [])
+    vis_soft      = (soft_skills      if not skill_groups.get("soft_hidden")      else [])
 
-    if skills_rows:
-        # Remove trailing \\ from last row (not needed + can cause pdflatex warnings)
-        rows_latex = "\n".join(skills_rows)
-        if rows_latex.endswith("\\\\"):
-            rows_latex = rows_latex[:-2]
-        skills_section = (
-            f"\\section*{{{sec('skills', 'Skills')}}}\n"
-            "\\begin{tabular}{@{}p{2.2cm}p{\\dimexpr\\linewidth-2.2cm\\relax}@{}}\n"
-            + rows_latex
-            + "\n\\end{tabular}\n\\par\\vspace{6pt}\n"
-        )
-    else:
-        skills_section = ""
+    # compact_skills: try flat one-line output (no category labels) when fitting 1 page
+    if compact_skills and (vis_technical or vis_tools or vis_soft):
+        all_flat = [s for grp in (vis_technical, vis_tools, vis_soft) for s in grp if s]
+        flat_line = ", ".join(latex_escape(s) for s in all_flat)
+        if len(flat_line) <= _BULLET_CPL:
+            skills_section = (
+                f"\\section*{{{sec('skills', 'Skills')}}}\n"
+                f"{flat_line}\n\\par\\vspace{{6pt}}\n"
+            )
+        else:
+            compact_skills = False  # too long — fall through to normal tabular
+
+    if not compact_skills:
+        skills_rows = []
+        if vis_technical:
+            skills_rows.append(
+                f"\\textbf{{Technical:}} & "
+                f"{', '.join(latex_escape(s) for s in vis_technical)} \\\\"
+            )
+        if vis_tools:
+            skills_rows.append(
+                f"\\textbf{{Tools:}} & "
+                f"{', '.join(latex_escape(s) for s in vis_tools)} \\\\"
+            )
+        if vis_soft:
+            skills_rows.append(
+                f"\\textbf{{Soft Skills:}} & "
+                f"{', '.join(latex_escape(s) for s in vis_soft)} \\\\"
+            )
+        if not skills_rows and skills:
+            flat = ", ".join(latex_escape(sk) for sk in skills if sk)
+            skills_rows.append(f"\\textbf{{Skills:}} & {flat} \\\\")
+
+        if skills_rows:
+            rows_latex = "\n".join(skills_rows)
+            if rows_latex.endswith("\\\\"):
+                rows_latex = rows_latex[:-2]
+            skills_section = (
+                f"\\section*{{{sec('skills', 'Skills')}}}\n"
+                "\\begin{tabular}{@{}p{2.2cm}p{\\dimexpr\\linewidth-2.2cm\\relax}@{}}\n"
+                + rows_latex
+                + "\n\\end{tabular}\n\\par\\vspace{6pt}\n"
+            )
+        else:
+            skills_section = ""
 
     # ── Header lines: order is location · email · phone, then links A-Z ──────
     contact_items = []

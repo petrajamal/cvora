@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — CVora</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    :root {
+      --primary: #4F46E5;
+      --text: #0F172A;
+      --text-secondary: #475569;
+      --text-muted: #94A3B8;
+      --border: #E2E8F0;
+      --bg: #F8FAFC;
+      --surface: #FFFFFF;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    nav {
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      padding: 0 40px;
+      height: 54px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .nav-logo-icon {
+      width: 24px;
+      height: 24px;
+      background: var(--primary);
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 56px 24px 80px;
+    }
+
+    .page-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--primary);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin: 0 0 8px;
+      color: var(--text);
+    }
+
+    .last-updated {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 40px;
+    }
+
+    h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+      margin: 36px 0 10px;
+    }
+
+    p {
+      margin: 0 0 16px;
+      color: var(--text-secondary);
+    }
+
+    ul {
+      margin: 0 0 16px;
+      padding-left: 20px;
+      color: var(--text-secondary);
+    }
+
+    ul li { margin-bottom: 6px; }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 40px 0;
+    }
+
+    .contact-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-top: 32px;
+    }
+
+    .contact-box p { margin: 0; }
+
+    .contact-box a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .contact-box a:hover { text-decoration: underline; }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    footer a {
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+
+    footer a:hover { color: var(--primary); }
+
+    @media (max-width: 600px) {
+      nav { padding: 0 20px; }
+      main { padding: 32px 20px 60px; }
+      footer { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="/" class="nav-logo">
+      <div class="nav-logo-icon">CV</div>
+      CVora
+    </a>
+  </nav>
+
+  <main>
+    <p class="page-label">Legal</p>
+    <h1>Privacy Policy</h1>
+    <p class="last-updated">Last updated: May 2025</p>
+
+    <p>CVora is a CV builder and job matching tool. This policy explains what data we collect, how we use it, and how we protect it.</p>
+
+    <h2>What We Collect</h2>
+    <p>When you use CVora, we collect the information you provide:</p>
+    <ul>
+      <li>Account details: your email address and password (stored as a secure hash)</li>
+      <li>CV content: your name, contact details, work history, education, skills, and any other information you enter into the builder</li>
+      <li>Job preferences: location, work type, and relocation preferences you set</li>
+    </ul>
+    <p>We do not collect any browsing data, tracking cookies, or advertising identifiers.</p>
+
+    <h2>How We Use Your Data</h2>
+    <ul>
+      <li>To generate your CV as a PDF using our LaTeX rendering service</li>
+      <li>To match your profile with relevant job listings</li>
+      <li>To store your CVs so you can access them from your account</li>
+      <li>To send transactional emails such as email verification and password reset links</li>
+    </ul>
+
+    <h2>AI Processing</h2>
+    <p>CVora uses OpenAI's API to enhance CV bullet points and generate job search queries. Relevant portions of your CV content may be sent to OpenAI's servers for this purpose. OpenAI processes this data in accordance with their <a href="https://openai.com/policies/privacy-policy" style="color:var(--primary);" target="_blank">privacy policy</a>. We use OpenAI's API in a way that does not allow them to use your data to train their models.</p>
+
+    <h2>Data Sharing</h2>
+    <p>We do not sell, rent, or share your personal data with any third parties for advertising, marketing, or commercial purposes. The only external service that processes your CV content is OpenAI, solely to provide the AI enhancement features described above.</p>
+
+    <h2>Data Storage</h2>
+    <p>Your account data and generated CV files are stored securely on our servers (Railway) and in cloud object storage (Cloudflare R2). Access is restricted and protected by authentication.</p>
+
+    <h2>Your Rights</h2>
+    <p>You can delete your account at any time from the Profile screen inside the app. Deleting your account permanently removes your data from our systems. You can also contact us to request access to or deletion of specific data.</p>
+
+    <h2>Cookies</h2>
+    <p>CVora does not use tracking or advertising cookies. We use a session token (stored in your browser's local storage) solely to keep you logged in.</p>
+
+    <hr class="divider" />
+
+    <div class="contact-box">
+      <p>Questions about this policy? Reach us at <a href="mailto:cvora.contact@gmail.com">cvora.contact@gmail.com</a></p>
+    </div>
+  </main>
+
+  <footer>
+    <a href="/">← Back to CVora</a>
+    <span>© 2025 CVora</span>
+  </footer>
+
+</body>
+</html>

@@ -660,14 +660,20 @@ function addEducationEntry() {
 
     <input class="education-field" placeholder="Field of study (optional)" maxlength="150" />
 
-    <label>Start Date *</label>
-    <input class="education-start" type="month" required />
-    <label>End Date (or expected)</label>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+    <div class="field-row-2">
+      <div class="field-group">
+        <label>Start Date *</label>
+        <input class="education-start" type="month" required />
+      </div>
+      <div class="field-group">
+        <label>End Date (or expected)</label>
+        <input class="education-end" type="month" />
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin:6px 0 8px;">
       <input class="education-currently-enrolled" type="checkbox" />
       <span style="font-size:13px;color:var(--text-secondary);">Currently enrolled / ongoing</span>
     </div>
-    <input class="education-end" type="month" />
 
     <label>Grade (optional)</label>
     <select class="education-grade-type">
@@ -739,16 +745,30 @@ function addEducationEntry() {
 function addExperienceEntry() {
   const container = document.getElementById("experienceEntries");
   container.insertAdjacentHTML("beforeend", createEntryCard("Work Experience", `
-    <input class="experience-organization" placeholder="Organization *" maxlength="200" required />
-    <input class="experience-position" placeholder="Position *" maxlength="150" required />
-    <label>Start Date *</label>
-    <input class="experience-start" type="month" required />
-    <label>End Date</label>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+    <div class="field-row-2">
+      <div class="field-group">
+        <label class="required-mark">Organisation</label>
+        <input class="experience-organization" placeholder="e.g. Google" maxlength="200" required />
+      </div>
+      <div class="field-group">
+        <label class="required-mark">Position</label>
+        <input class="experience-position" placeholder="e.g. Software Engineer" maxlength="150" required />
+      </div>
+    </div>
+    <div class="field-row-2" style="margin-top:8px;">
+      <div class="field-group">
+        <label>Start Date *</label>
+        <input class="experience-start" type="month" required />
+      </div>
+      <div class="field-group">
+        <label>End Date</label>
+        <input class="experience-end" type="month" />
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin:6px 0 8px;">
       <input class="experience-currently-working" type="checkbox" />
       <span style="font-size:13px;color:var(--text-secondary);">Currently working here</span>
     </div>
-    <input class="experience-end" type="month" />
     <input class="experience-location" placeholder="Location (optional)" maxlength="100" />
     <textarea class="experience-description" rows="4" maxlength="2000"
       placeholder="Responsibilities / achievements — one bullet per line *" required></textarea>
@@ -851,14 +871,22 @@ function addLanguageEntry() {
   container.insertAdjacentHTML(
     "beforeend",
     createEntryCard("Language", `
-      <input class="language-name" placeholder="Language" />
-      <select class="language-level">
-        <option value="Native">Native</option>
-        <option value="Fluent">Fluent</option>
-        <option value="Professional">Professional</option>
-        <option value="Intermediate">Intermediate</option>
-        <option value="Basic">Basic</option>
-      </select>
+      <div class="field-row-2">
+        <div class="field-group">
+          <label>Language</label>
+          <input class="language-name" placeholder="e.g. Arabic" />
+        </div>
+        <div class="field-group">
+          <label>Proficiency</label>
+          <select class="language-level">
+            <option value="Native">Native</option>
+            <option value="Fluent">Fluent</option>
+            <option value="Professional">Professional</option>
+            <option value="Intermediate">Intermediate</option>
+            <option value="Basic">Basic</option>
+          </select>
+        </div>
+      </div>
     `)
   );
   attachRemoveHandlers("languageEntries");

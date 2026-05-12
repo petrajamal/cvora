@@ -603,7 +603,8 @@
     .section-rename-btn:hover { opacity: 1; color: var(--primary); box-shadow: none; }
     .section-custom-label {
       font-size: 11px; font-style: italic; color: var(--text-secondary);
-      margin: -8px 0 8px; display: flex; align-items: center; gap: 4px;
+      display: flex; align-items: center; gap: 4px;
+      width: 100%; margin: 0; padding-top: 2px;
     }
     .section-rename-input {
       font-size: 12px; padding: 3px 7px; border-radius: var(--radius-sm);
@@ -824,41 +825,171 @@
     #builderSection {
       flex: 1;
       min-width: 0;
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Builder page header */
+    .builder-header {
       background: var(--surface);
       border-radius: var(--radius-lg);
       border: 1px solid var(--border);
       box-shadow: var(--shadow-sm);
-      padding: 28px;
-      margin-bottom: 20px;
+      padding: 16px 22px;
     }
 
-    #builderSection h2 {
-      font-size: 1.15rem;
+    .builder-header h2 {
+      font-size: 1.05rem;
       font-weight: 700;
-      margin-bottom: 6px;
-      padding-bottom: 18px;
-      border-bottom: 2px solid var(--border);
+      margin: 0 0 2px;
     }
 
-    #builderSection h3 {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--text);
-      letter-spacing: -0.01em;
-      margin: 32px 0 16px;
-      padding: 14px 0 14px;
-      border-top: 1px solid var(--border);
+    .builder-subtitle {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    /* ── Form Section Cards ── */
+    .form-section-card {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+
+    .form-section-header {
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-muted);
+      gap: 6px 8px;
     }
 
-    #builderSection h3::before { display: none; }
-
-    #builderSection h3:first-of-type {
-      border-top: none;
-      margin-top: 16px;
+    .form-section-header h3 {
+      font-size: 10.5px !important;
+      font-weight: 700 !important;
+      color: var(--text-secondary) !important;
+      letter-spacing: 0.07em !important;
+      text-transform: uppercase !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 6px !important;
+      flex: 1;
     }
+
+    .form-section-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .form-section-body {
+      padding: 16px 18px 18px;
+    }
+
+    .form-section-body > label { margin-top: 12px; }
+    .form-section-body > label:first-child,
+    .form-section-body > .field-row-2:first-child label,
+    .form-section-body > .field-group:first-child label { margin-top: 0; }
+
+    /* 2-column field rows */
+    .field-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .field-row-2 .field-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .field-row-2 .field-group label { margin-top: 0; }
+
+    /* Skill subsections inside skills card */
+    .skill-subsection {
+      padding-bottom: 14px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .skill-subsection:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .skill-subsection-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .skill-subsection-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: block;
+    }
+
+    /* Section header add button */
+    .section-add-btn {
+      padding: 4px 11px !important;
+      font-size: 11.5px !important;
+      font-weight: 600 !important;
+      background: transparent !important;
+      color: var(--primary) !important;
+      border: 1.5px solid var(--primary-border) !important;
+      border-radius: var(--radius-sm) !important;
+      box-shadow: none !important;
+      white-space: nowrap;
+    }
+
+    .section-add-btn:hover {
+      background: var(--primary-light) !important;
+      box-shadow: none !important;
+      transform: none !important;
+    }
+
+    /* App-wide footer */
+    .app-footer {
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+
+    .app-footer-links {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .app-footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .app-footer-links a:hover { color: var(--primary); }
 
     #buildCvBtn {
       padding: 11px 26px;
@@ -870,7 +1001,6 @@
       background: transparent !important;
       color: var(--text-secondary) !important;
       border: 1.5px solid var(--border) !important;
-      margin-left: 10px;
       padding: 11px 20px;
       font-size: 14px;
     }
@@ -1590,7 +1720,9 @@
         justify-content: center;
       }
 
-      #builderSection, #uploadSection { padding: 16px; }
+      .form-section-body { padding: 12px 14px 14px; }
+      .form-section-header { padding: 9px 14px; }
+      .field-row-2 { grid-template-columns: 1fr; }
 
       #candidateInfo { grid-template-columns: 1fr; }
 
@@ -1860,192 +1992,304 @@
       <div id="builderPreviewLayout">
 
         <div id="builderSection" class="hidden">
-          <h2>Build Your CV</h2>
+
+          <div class="builder-header">
+            <h2>Build Your CV</h2>
+            <p class="builder-subtitle">Fill in your details and click Build CV &amp; Preview to generate your PDF.</p>
+          </div>
 
           <form id="builderForm">
-            <h3>Quick Setup</h3>
 
-            <label>Profile Type</label>
-            <select id="userType">
-              <option value="student">Student</option>
-              <option value="graduate">Graduate</option>
-            </select>
-
-            <label class="required-mark">Target Fields (e.g. IT, Marketing, Finance)</label>
-            <input id="fields" type="text" placeholder="IT, Marketing, Finance" maxlength="200" required />
-
-            <label>Application Level</label>
-            <select id="level">
-              <option value="internship">Internship</option>
-              <option value="entry">Entry-level</option>
-              <option value="experienced">Experienced</option>
-            </select>
-
-            <h3>Personal &amp; Contact Information</h3>
-
-            <label class="required-mark">Full Name</label>
-            <input id="fullName" type="text" placeholder="Full Name" maxlength="100" required />
-
-            <label class="required-mark">Email</label>
-            <input id="email" type="email" placeholder="you@example.com" maxlength="120" required />
-
-            <label class="required-mark">Phone</label>
-            <input id="phone" type="tel" inputmode="tel" placeholder="+1 555 123 4567" maxlength="20"
-                   pattern="[+\d][\d\s\-\(\)]{5,18}" title="Enter a valid phone number" required />
-
-            <label>Location (optional)</label>
-            <input id="location" type="text" placeholder="City, Country" maxlength="100" />
-
-            <label>Professional Summary (optional)</label>
-            <textarea id="summary" placeholder="A short professional summary..." rows="4" maxlength="2000" data-wordcounter></textarea>
-            <div class="char-counter-row"><span class="char-counter-display" data-for="summary"></span></div>
-
-            <h3>Links</h3>
-            <div class="subsection-header">
-              <span>Online profiles &amp; websites</span>
-              <button type="button" id="addLinkBtn">+ Add Link</button>
-            </div>
-            <div id="linksEntries"></div>
-
-            <h3 data-section-key="education">Education</h3>
-            <div class="subsection-header"><span>Add one or more entries</span></div>
-            <div id="educationEntries"></div>
-            <button type="button" id="addEducationBtn" class="add-entry-btn">+ Add Education</button>
-
-            <h3 data-section-key="experience">Work Experience</h3>
-            <div class="subsection-header"><span>Add if applicable</span></div>
-            <div id="experienceEntries"></div>
-            <button type="button" id="addExperienceBtn" class="add-entry-btn">+ Add Experience</button>
-
-            <h3 data-section-key="projects">Projects</h3>
-            <div class="subsection-header"><span>Add if applicable</span></div>
-            <div id="projectEntries"></div>
-            <button type="button" id="addProjectBtn" class="add-entry-btn">+ Add Project</button>
-
-            <h3 data-section-key="skills">Skills</h3>
-
-            <label style="display:flex;align-items:center;gap:6px;">Technical Skills
-              <button type="button" id="toggleTechnicalSkills" class="entry-visibility-btn section-visibility-btn" data-target="technicalSkillsSection" title="Hide from CV"></button>
-            </label>
-            <div id="technicalSkillsSection">
-              <input id="technicalSkillInput" placeholder="Type skill and press Enter" />
-              <div id="technicalSkillsContainer"></div>
+            <!-- Quick Setup -->
+            <div class="form-section-card">
+              <div class="form-section-header">
+                <h3>Quick Setup</h3>
+              </div>
+              <div class="form-section-body">
+                <div class="field-row-2">
+                  <div class="field-group">
+                    <label>Profile Type</label>
+                    <select id="userType">
+                      <option value="student">Student</option>
+                      <option value="graduate">Graduate</option>
+                    </select>
+                  </div>
+                  <div class="field-group">
+                    <label>Application Level</label>
+                    <select id="level">
+                      <option value="internship">Internship</option>
+                      <option value="entry">Entry-level</option>
+                      <option value="experienced">Experienced</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field-group" style="margin-top:12px;">
+                  <label class="required-mark">Target Fields <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">(e.g. IT, Marketing, Finance)</span></label>
+                  <input id="fields" type="text" placeholder="IT, Marketing, Finance" maxlength="200" required />
+                </div>
+              </div>
             </div>
 
-            <label style="display:flex;align-items:center;gap:6px;">Tools &amp; Technologies
-              <button type="button" id="toggleToolsSkills" class="entry-visibility-btn section-visibility-btn" data-target="toolsSkillsSection" title="Hide from CV"></button>
-            </label>
-            <div id="toolsSkillsSection">
-              <input id="toolsSkillInput" placeholder="Type tool and press Enter" />
-              <div id="toolsSkillsContainer"></div>
+            <!-- Personal & Contact Information -->
+            <div class="form-section-card">
+              <div class="form-section-header">
+                <h3>Personal &amp; Contact Information</h3>
+              </div>
+              <div class="form-section-body">
+                <div class="field-row-2">
+                  <div class="field-group">
+                    <label class="required-mark">Full Name</label>
+                    <input id="fullName" type="text" placeholder="Full Name" maxlength="100" required />
+                  </div>
+                  <div class="field-group">
+                    <label>Location <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">(optional)</span></label>
+                    <input id="location" type="text" placeholder="City, Country" maxlength="100" />
+                  </div>
+                </div>
+                <div class="field-row-2" style="margin-top:12px;">
+                  <div class="field-group">
+                    <label class="required-mark">Email</label>
+                    <input id="email" type="email" placeholder="you@example.com" maxlength="120" required />
+                  </div>
+                  <div class="field-group">
+                    <label class="required-mark">Phone</label>
+                    <input id="phone" type="tel" inputmode="tel" placeholder="+1 555 123 4567" maxlength="20"
+                           pattern="[+\d][\d\s\-\(\)]{5,18}" title="Enter a valid phone number" required />
+                  </div>
+                </div>
+                <div class="field-group" style="margin-top:12px;">
+                  <label>Professional Summary <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">(optional)</span></label>
+                  <textarea id="summary" placeholder="A short professional summary..." rows="4" maxlength="2000" data-wordcounter></textarea>
+                  <div class="char-counter-row"><span class="char-counter-display" data-for="summary"></span></div>
+                </div>
+              </div>
             </div>
 
-            <label style="display:flex;align-items:center;gap:6px;">Soft Skills
-              <button type="button" id="toggleSoftSkills" class="entry-visibility-btn section-visibility-btn" data-target="softSkillsSection" title="Hide from CV"></button>
-            </label>
-            <div id="softSkillsSection">
-              <input id="softSkillInput" placeholder="Type soft skill and press Enter" />
-              <div id="softSkillsContainer"></div>
+            <!-- Links -->
+            <div class="form-section-card">
+              <div class="form-section-header">
+                <h3>Links</h3>
+                <div class="form-section-actions">
+                  <button type="button" id="addLinkBtn" class="section-add-btn">+ Add Link</button>
+                </div>
+              </div>
+              <div class="form-section-body">
+                <div id="linksEntries"></div>
+              </div>
             </div>
 
-            <h3 data-section-key="extracurriculars">Extracurricular Activities &amp; Leadership</h3>
-            <div class="subsection-header"><span>Add if applicable</span></div>
-            <div id="extracurricularEntries"></div>
-            <button type="button" id="addExtracurricularBtn" class="add-entry-btn">+ Add Extracurricular</button>
-
-            <h3 data-section-key="certifications">Certifications</h3>
-            <div class="subsection-header"><span>Add if applicable</span></div>
-            <div id="certificationEntries"></div>
-            <button type="button" id="addCertificationBtn" class="add-entry-btn">+ Add Certification</button>
-
-            <h3 data-section-key="awards">Awards &amp; Achievements</h3>
-            <div class="subsection-header"><span>Add if applicable</span></div>
-            <div id="awardEntries"></div>
-            <button type="button" id="addAwardBtn" class="add-entry-btn">+ Add Award</button>
-
-            <h3 data-section-key="languages" style="display:flex;align-items:center;gap:6px;">Languages
-              <button type="button" id="toggleLanguages" class="entry-visibility-btn section-visibility-btn" data-target="languagesSection" title="Hide from CV"></button>
-            </h3>
-            <div id="languagesSection">
-              <div class="subsection-header"><span>Add if applicable</span></div>
-              <div id="languageEntries"></div>
-              <button type="button" id="addLanguageBtn" class="add-entry-btn">+ Add Language</button>
+            <!-- Education -->
+            <div class="form-section-card">
+              <div class="form-section-header">
+                <h3 data-section-key="education">Education</h3>
+                <div class="form-section-actions">
+                  <button type="button" id="addEducationBtn" class="section-add-btn">+ Add Education</button>
+                </div>
+              </div>
+              <div class="form-section-body">
+                <div id="educationEntries"></div>
+              </div>
             </div>
 
-            <h3>Job Search Preferences</h3>
-
-            <label>Where would you like to work?</label>
-            <div class="checkbox-group" id="builderPrefsSection">
-              <label><input type="checkbox" value="remote" /> Remote</label>
-              <label><input type="checkbox" value="cv_location" /> Based on my location (from above)</label>
-              <label><input type="checkbox" value="willing_to_relocate" /> Willing to Relocate</label>
+            <!-- Work Experience -->
+            <div class="form-section-card">
+              <div class="form-section-header">
+                <h3 data-section-key="experience">Work Experience</h3>
+                <div class="form-section-actions">
+                  <button type="button" id="addExperienceBtn" class="section-add-btn">+ Add Experience</button>
+                </div>
+              </div>
+              <div class="form-section-body">
+                <div id="experienceEntries"></div>
+              </div>
             </div>
 
-            <div id="relocationCountriesGroupBuilder" style="display:none;margin-top:8px;">
-            <label for="builderRelocationCountries">Relocation Countries <span style="text-transform:none;font-weight:400;letter-spacing:0;color:var(--text-muted)">(hold Cmd/Ctrl for multiple)</span></label>
-            <select id="builderRelocationCountries" multiple size="6">
-              <optgroup label="Middle East &amp; North Africa">
-                <option value="AE">United Arab Emirates</option>
-                <option value="SA">Saudi Arabia</option>
-                <option value="QA">Qatar</option>
-                <option value="KW">Kuwait</option>
-                <option value="BH">Bahrain</option>
-                <option value="OM">Oman</option>
-                <option value="JO">Jordan</option>
-                <option value="LB">Lebanon</option>
-                <option value="EG">Egypt</option>
-                <option value="MA">Morocco</option>
-              </optgroup>
-              <optgroup label="Europe">
-                <option value="GB">United Kingdom</option>
-                <option value="DE">Germany</option>
-                <option value="FR">France</option>
-                <option value="NL">Netherlands</option>
-                <option value="CH">Switzerland</option>
-                <option value="SE">Sweden</option>
-                <option value="NO">Norway</option>
-                <option value="DK">Denmark</option>
-                <option value="FI">Finland</option>
-                <option value="BE">Belgium</option>
-                <option value="AT">Austria</option>
-                <option value="IE">Ireland</option>
-                <option value="ES">Spain</option>
-                <option value="IT">Italy</option>
-                <option value="PT">Portugal</option>
-                <option value="PL">Poland</option>
-                <option value="LU">Luxembourg</option>
-              </optgroup>
-              <optgroup label="Americas">
-                <option value="US">United States</option>
-                <option value="CA">Canada</option>
-                <option value="BR">Brazil</option>
-                <option value="MX">Mexico</option>
-              </optgroup>
-              <optgroup label="Asia Pacific">
-                <option value="SG">Singapore</option>
-                <option value="AU">Australia</option>
-                <option value="NZ">New Zealand</option>
-                <option value="IN">India</option>
-                <option value="JP">Japan</option>
-                <option value="KR">South Korea</option>
-                <option value="MY">Malaysia</option>
-                <option value="HK">Hong Kong</option>
-              </optgroup>
-              <optgroup label="Africa">
-                <option value="ZA">South Africa</option>
-                <option value="NG">Nigeria</option>
-                <option value="KE">Kenya</option>
-              </optgroup>
-              <optgroup label="Other">
-                <option value="TR">Turkey</option>
-              </optgroup>
-            </select>
+            <!-- Projects -->
+            <div class="form-section-card">
+              <div class="form-section-header">
+                <h3 data-section-key="projects">Projects</h3>
+                <div class="form-section-actions">
+                  <button type="button" id="addProjectBtn" class="section-add-btn">+ Add Project</button>
+                </div>
+              </div>
+              <div class="form-section-body">
+                <div id="projectEntries"></div>
+              </div>
             </div>
 
-            <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
-              <button type="submit" id="buildCvBtn">Build CV &amp; Preview</button>
-              <button type="button" id="resetBuilderBtn">Reset All Fields</button>
+            <!-- Skills -->
+            <div class="form-section-card">
+              <div class="form-section-header">
+                <h3 data-section-key="skills">Skills</h3>
+              </div>
+              <div class="form-section-body">
+                <div class="skill-subsection">
+                  <div class="skill-subsection-header">
+                    <span class="skill-subsection-label">Technical Skills</span>
+                    <button type="button" id="toggleTechnicalSkills" class="entry-visibility-btn section-visibility-btn" data-target="technicalSkillsSection" title="Hide from CV"></button>
+                  </div>
+                  <div id="technicalSkillsSection">
+                    <input id="technicalSkillInput" placeholder="Type skill and press Enter" />
+                    <div id="technicalSkillsContainer"></div>
+                  </div>
+                </div>
+                <div class="skill-subsection">
+                  <div class="skill-subsection-header">
+                    <span class="skill-subsection-label">Tools &amp; Technologies</span>
+                    <button type="button" id="toggleToolsSkills" class="entry-visibility-btn section-visibility-btn" data-target="toolsSkillsSection" title="Hide from CV"></button>
+                  </div>
+                  <div id="toolsSkillsSection">
+                    <input id="toolsSkillInput" placeholder="Type tool and press Enter" />
+                    <div id="toolsSkillsContainer"></div>
+                  </div>
+                </div>
+                <div class="skill-subsection">
+                  <div class="skill-subsection-header">
+                    <span class="skill-subsection-label">Soft Skills</span>
+                    <button type="button" id="toggleSoftSkills" class="entry-visibility-btn section-visibility-btn" data-target="softSkillsSection" title="Hide from CV"></button>
+                  </div>
+                  <div id="softSkillsSection">
+                    <input id="softSkillInput" placeholder="Type soft skill and press Enter" />
+                    <div id="softSkillsContainer"></div>
+                  </div>
+                </div>
+              </div>
             </div>
+
+            <!-- Extracurricular Activities -->
+            <div class="form-section-card">
+              <div class="form-section-header">
+                <h3 data-section-key="extracurriculars">Extracurricular Activities &amp; Leadership</h3>
+                <div class="form-section-actions">
+                  <button type="button" id="addExtracurricularBtn" class="section-add-btn">+ Add</button>
+                </div>
+              </div>
+              <div class="form-section-body">
+                <div id="extracurricularEntries"></div>
+              </div>
+            </div>
+
+            <!-- Certifications -->
+            <div class="form-section-card">
+              <div class="form-section-header">
+                <h3 data-section-key="certifications">Certifications</h3>
+                <div class="form-section-actions">
+                  <button type="button" id="addCertificationBtn" class="section-add-btn">+ Add</button>
+                </div>
+              </div>
+              <div class="form-section-body">
+                <div id="certificationEntries"></div>
+              </div>
+            </div>
+
+            <!-- Awards -->
+            <div class="form-section-card">
+              <div class="form-section-header">
+                <h3 data-section-key="awards">Awards &amp; Achievements</h3>
+                <div class="form-section-actions">
+                  <button type="button" id="addAwardBtn" class="section-add-btn">+ Add</button>
+                </div>
+              </div>
+              <div class="form-section-body">
+                <div id="awardEntries"></div>
+              </div>
+            </div>
+
+            <!-- Languages -->
+            <div class="form-section-card">
+              <div class="form-section-header">
+                <h3 data-section-key="languages">Languages</h3>
+                <div class="form-section-actions">
+                  <button type="button" id="toggleLanguages" class="entry-visibility-btn section-visibility-btn" data-target="languagesSection" title="Hide from CV"></button>
+                  <button type="button" id="addLanguageBtn" class="section-add-btn">+ Add</button>
+                </div>
+              </div>
+              <div class="form-section-body">
+                <div id="languagesSection">
+                  <div id="languageEntries"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Job Search Preferences -->
+            <div class="form-section-card">
+              <div class="form-section-header">
+                <h3>Job Search Preferences</h3>
+              </div>
+              <div class="form-section-body">
+                <label style="margin-top:0;">Where would you like to work?</label>
+                <div class="checkbox-group" id="builderPrefsSection">
+                  <label><input type="checkbox" value="remote" /> Remote</label>
+                  <label><input type="checkbox" value="cv_location" /> Based on my location (from above)</label>
+                  <label><input type="checkbox" value="willing_to_relocate" /> Willing to Relocate</label>
+                </div>
+                <div id="relocationCountriesGroupBuilder" style="display:none;margin-top:8px;">
+                  <label for="builderRelocationCountries">Relocation Countries <span style="text-transform:none;font-weight:400;letter-spacing:0;color:var(--text-muted)">(hold Cmd/Ctrl for multiple)</span></label>
+                  <select id="builderRelocationCountries" multiple size="6">
+                    <optgroup label="Middle East &amp; North Africa">
+                      <option value="AE">United Arab Emirates</option>
+                      <option value="SA">Saudi Arabia</option>
+                      <option value="QA">Qatar</option>
+                      <option value="KW">Kuwait</option>
+                      <option value="BH">Bahrain</option>
+                      <option value="OM">Oman</option>
+                      <option value="JO">Jordan</option>
+                      <option value="LB">Lebanon</option>
+                      <option value="EG">Egypt</option>
+                      <option value="MA">Morocco</option>
+                    </optgroup>
+                    <optgroup label="Europe">
+                      <option value="GB">United Kingdom</option>
+                      <option value="DE">Germany</option>
+                      <option value="FR">France</option>
+                      <option value="NL">Netherlands</option>
+                      <option value="CH">Switzerland</option>
+                      <option value="SE">Sweden</option>
+                      <option value="NO">Norway</option>
+                      <option value="DK">Denmark</option>
+                      <option value="FI">Finland</option>
+                      <option value="BE">Belgium</option>
+                      <option value="AT">Austria</option>
+                      <option value="IE">Ireland</option>
+                      <option value="ES">Spain</option>
+                      <option value="IT">Italy</option>
+                      <option value="PT">Portugal</option>
+                      <option value="PL">Poland</option>
+                      <option value="LU">Luxembourg</option>
+                    </optgroup>
+                    <optgroup label="Americas">
+                      <option value="US">United States</option>
+                      <option value="CA">Canada</option>
+                      <option value="BR">Brazil</option>
+                      <option value="MX">Mexico</option>
+                    </optgroup>
+                    <optgroup label="Asia Pacific">
+                      <option value="SG">Singapore</option>
+                      <option value="AU">Australia</option>
+                      <option value="NZ">New Zealand</option>
+                      <option value="IN">India</option>
+                      <option value="JP">Japan</option>
+                      <option value="KR">South Korea</option>
+                      <option value="MY">Malaysia</option>
+                      <option value="HK">Hong Kong</option>
+                    </optgroup>
+                    <optgroup label="Africa">
+                      <option value="ZA">South Africa</option>
+                      <option value="NG">Nigeria</option>
+                      <option value="KE">Kenya</option>
+                    </optgroup>
+                    <optgroup label="Other">
+                      <option value="TR">Turkey</option>
+                    </optgroup>
+                  </select>
+                </div>
+                <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+                  <button type="submit" id="buildCvBtn">Build CV &amp; Preview</button>
+                  <button type="button" id="resetBuilderBtn">Reset All Fields</button>
+                </div>
+              </div>
+            </div>
+
           </form>
         </div>
 
@@ -2100,6 +2344,14 @@
 
     </div><!-- /app-content -->
     </div><!-- /mainView -->
+
+    <footer class="app-footer">
+      <span>© 2025 CVora</span>
+      <div class="app-footer-links">
+        <a href="mailto:cvora.contact@gmail.com">Contact Us</a>
+        <a href="/privacy.html" target="_blank">Privacy Policy</a>
+      </div>
+    </footer>
 
   </div><!-- /appScreen -->
 

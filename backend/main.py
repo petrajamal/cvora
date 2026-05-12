@@ -927,10 +927,11 @@ async def save_cv_only(payload: dict, user_id: str = Depends(get_current_user_id
     if not candidate_profile:
         raise HTTPException(status_code=400, detail="Missing candidate_profile")
 
-    enhanced_profile = await auto_enhance_cv_descriptions(candidate_profile)
+    cleaned_profile  = clean_profile_input(candidate_profile)
+    enhanced_profile = await auto_enhance_cv_descriptions(cleaned_profile)
 
     try:
-        latex_source, pdf_bytes = await build_one_page_cv(enhanced_profile)
+        latex_source, pdf_bytes, _ = await build_one_page_cv(enhanced_profile)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
     except Exception as exc:
@@ -990,8 +991,9 @@ async def download_cv_latex(job_id: str, user_id: str = Depends(get_current_user
         if not latex_source and job.candidate_profile:
             try:
                 raw_profile = json.loads(job.candidate_profile)
-                enhanced = await auto_enhance_cv_descriptions(raw_profile)
-                latex_source, _ = await build_one_page_cv(enhanced)
+                cleaned = clean_profile_input(raw_profile)
+                enhanced = await auto_enhance_cv_descriptions(cleaned)
+                latex_source, _, _ = await build_one_page_cv(enhanced)
             except Exception:
                 latex_source = ""
         if not latex_source:
@@ -1025,21 +1027,56 @@ def view_cv(job_id: str, user_id: str = Depends(get_current_user_id)):
         db.close()
 
 
-_JUNK_PATTERN = re.compile(
-    r"^[\s.]*$"                      # blank or dots only
-    r"|(\.\s*){2,}"                  # two or more consecutive dots / ". . ."
-    r"|\b(slayed|aaa+|test|xxx+|placeholder|lorem)\b",
-    re.IGNORECASE,
+import unicodedata
+
+_BULLET_CHARS = re.compile(r"^[\s•\-–—*▪▸►◦·▷>]+")
+_TRAILING_PUNCT = re.compile(r"[\s.,;:!?]+$")
+_EMOJI_RE = re.compile(
+    "[\U00010000-\U0010ffff"
+    "\U0001F600-\U0001F64F"
+    "\U0001F300-\U0001F5FF"
+    "\U0001F680-\U0001F6FF"
+    "\U0001F1E0-\U0001F1FF"
+    "\U00002702-\U000027B0"
+    "\U000024C2-\U0001F251"
+    "]+",
+    flags=re.UNICODE,
 )
 
-def _needs_enhancement(text: str) -> bool:
-    """True only for bullets that are too short or clearly junk."""
-    words = text.split()
-    if len(words) < 6:
-        return True
-    if _JUNK_PATTERN.search(text):
-        return True
-    return False
+
+def _clean_text(t: str) -> str:
+    """Strip bullet chars, emojis, trailing punctuation, and collapse whitespace."""
+    t = _EMOJI_RE.sub("", t)
+    t = _BULLET_CHARS.sub("", t)
+    t = _TRAILING_PUNCT.sub("", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+
+def clean_profile_input(profile: dict) -> dict:
+    """
+    Pure-Python pass that strips bullet characters, emojis, trailing
+    punctuation, and extra whitespace from all free-text fields.
+    """
+    import copy
+    p = copy.deepcopy(profile)
+
+    def _clean_list(lst):
+        if not isinstance(lst, list):
+            return lst
+        return [_clean_text(b) if isinstance(b, str) else b for b in lst]
+
+    if p.get("summary"):
+        p["summary"] = _clean_text(p["summary"])
+
+    for section in ("work_experience", "education", "projects", "extracurriculars", "awards"):
+        for entry in (p.get(section) or []):
+            if isinstance(entry.get("description"), list):
+                entry["description"] = [
+                    b for b in _clean_list(entry["description"]) if b
+                ]
+
+    return p
 
 
 async def auto_enhance_cv_descriptions(profile: dict) -> dict:
@@ -1062,11 +1099,11 @@ async def auto_enhance_cv_descriptions(profile: dict) -> dict:
             return
         for i in range(len(desc_list)):
             b = desc_list[i]
-            if isinstance(b, str) and b.strip() and _needs_enhancement(b):
+            if isinstance(b, str) and b.strip():
                 items.append((b, ctx, lambda v, d=desc_list, j=i: d.__setitem__(j, v)))
 
     summary = (p.get("summary") or "").strip()
-    if summary and _needs_enhancement(summary):
+    if summary:
         name = p.get("full_name", "applicant")
         items.append((summary, f"Professional summary for {name}",
                        lambda v: p.update({"summary": v})))
@@ -1095,28 +1132,25 @@ async def auto_enhance_cv_descriptions(profile: dict) -> dict:
         for i, (text, ctx, _) in enumerate(items)
     )
     prompt = (
-        "You are fixing CV bullet points. Each numbered item below was flagged because it is "
-        "either fewer than 6 words or clearly nonsensical/placeholder text.\n\n"
+        "You are a professional CV editor. Improve each numbered bullet point below.\n\n"
         "Rules:\n"
-        "1. Fix grammar, spelling, and punctuation.\n"
-        "2. Remove filler (ellipses, '. . .', placeholder phrases).\n"
-        "3. If the text is nonsensical, a single slang word, or an obvious placeholder "
-        "(e.g. 'slayed', 'aaa', '...', 'test'), replace it with one short professional bullet "
-        "appropriate for the given context. Do NOT invent specific metrics or facts.\n"
-        "4. If the text is fewer than 6 words but otherwise meaningful, expand it slightly "
-        "using only information implied by the context. Do NOT add unrelated facts.\n"
+        "1. Fix all grammar, spelling, and punctuation.\n"
+        "2. Use a consistent professional tone throughout — active voice, strong action verbs, "
+        "past tense for past roles.\n"
+        "3. Make wording concise and CV-appropriate. Remove filler and placeholder phrases.\n"
+        "4. If a bullet is nonsensical or clearly a placeholder (e.g. 'slayed', 'aaa', 'test'), "
+        "replace it with a short professional bullet appropriate for the given context. "
+        "Do NOT invent specific metrics or facts.\n"
         "5. NEVER add new bullet points. Return exactly one line per numbered item.\n"
-        "6. For any item that is already clear and professional (even if short), "
-        "return it with only minimal grammar fixes.\n\n"
+        "6. Do NOT change the factual content — only improve language and tone.\n\n"
         "Return ONLY the numbered items in the same order, one per line:\n"
-        "1. fixed text\n2. fixed text\n\n"
+        "1. improved text\n2. improved text\n\n"
         + entries
     )
 
     try:
         client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         resp = await client.responses.create(model="gpt-4o-mini", input=prompt)
-        # Robust parser: findall captures multi-line responses without index shifting
         for num_str, text in re.findall(
             r"^(\d+)\.\s+(.*?)(?=\n\d+\.|\Z)",
             resp.output_text.strip(),
@@ -1124,7 +1158,6 @@ async def auto_enhance_cv_descriptions(profile: dict) -> dict:
         ):
             idx = int(num_str) - 1
             if 0 <= idx < len(items):
-                # Collapse any AI-introduced newlines within a single item to a space
                 items[idx][2](re.sub(r"\s+", " ", text).strip())
     except Exception:
         return profile  # fall back to original on any failure
@@ -1134,14 +1167,13 @@ async def auto_enhance_cv_descriptions(profile: dict) -> dict:
 
 async def apply_line_rules(profile: dict, long_cv: bool = False) -> dict:
     """
-    Rule 1  — if an entry's bullets exceed 6 printed lines total, ask GPT to
-              combine and summarise them into a condensed list that fits within
-              6 lines while preserving all key information.
+    Rule 1  — if an entry's bullets exceed 6 printed lines total, combine and
+              summarise them to fit within 6 lines.
     Rule 1b — (long_cv only) pair-combine 1-line bullets in entries with ≥6
-              single-line bullets, reducing bullet count by ~half.
-    Rule 2  — if a bullet ends with exactly 1 word on its last line (widow),
-              ask GPT to shorten it by 1 word (or 2 words when long_cv).
-              Repeated up to 3 passes.
+              single-line bullets.
+    Rule 2  — widow fix: if a bullet has exactly 1 word on its last line,
+              ask GPT to make the bullet ONE WORD LONGER so the trailing word
+              merges onto the previous line. Repeated up to 3 passes.
     """
     import copy
     from openai import AsyncOpenAI
@@ -1157,7 +1189,7 @@ async def apply_line_rules(profile: dict, long_cv: bool = False) -> dict:
     client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     # ── Rule 1: summarise overlong entries ───────────────────────────────────
-    to_summarise = []  # [(bullets_list, setter)]
+    to_summarise = []
     for section in SECTIONS:
         for entry in (p.get(section) or []):
             desc = entry.get("description")
@@ -1209,18 +1241,17 @@ async def apply_line_rules(profile: dict, long_cv: bool = False) -> dict:
                         current_bullets.append(bullet)
             _flush()
         except Exception:
-            pass  # keep originals on failure
+            pass
 
     # ── Rule 1b: pair-combine 1-line bullets when long_cv ────────────────────
     if long_cv:
-        pair_entries = []  # [(entry_ref, pairs_list, setter)]
+        pair_entries = []
         for section in SECTIONS:
             for entry in (p.get(section) or []):
                 desc = entry.get("description")
                 if not isinstance(desc, list) or len(desc) < 6:
                     continue
                 if all(estimate_bullet_lines(b) == 1 for b in desc):
-                    # Build pairs: (b0,b1), (b2,b3), ... odd last stays alone
                     pairs = [(desc[i], desc[i + 1]) for i in range(0, len(desc) - 1, 2)]
                     leftover = desc[len(pairs) * 2] if len(desc) % 2 == 1 else None
                     pair_entries.append(
@@ -1273,9 +1304,12 @@ async def apply_line_rules(profile: dict, long_cv: bool = False) -> dict:
                             current_pairs.append(pm.group(1).strip())
                 _flush_pairs()
             except Exception:
-                pass  # keep originals on failure
+                pass
 
-    # ── Rule 2: fix widow words (up to 3 passes) ─────────────────────────────
+    # ── Rule 2: lengthen widow bullets (up to 3 passes) ──────────────────────
+    # A "widow" is a bullet whose last typeset line has exactly 1 word.
+    # We add 1 word so that trailing word merges back onto the previous line,
+    # reducing the line count by 1 instead of increasing it.
     for _pass in range(3):
         widow_items: list[tuple] = []
 
@@ -1283,7 +1317,7 @@ async def apply_line_rules(profile: dict, long_cv: bool = False) -> dict:
             for entry in (p.get(section) or []):
                 desc = entry.get("description") or []
                 for i, bullet in enumerate(desc):
-                    if isinstance(bullet, str) and last_line_word_count(bullet) <= (2 if long_cv else 1):
+                    if isinstance(bullet, str) and last_line_word_count(bullet) == 1:
                         widow_items.append(
                             (bullet, lambda v, d=desc, j=i: d.__setitem__(j, v))
                         )
@@ -1294,12 +1328,13 @@ async def apply_line_rules(profile: dict, long_cv: bool = False) -> dict:
         entries = "\n\n".join(
             f"{i+1}. {text}" for i, (text, _) in enumerate(widow_items)
         )
-        shorten_by = "2 words" if long_cv else "1 word"
         prompt = (
-            f"Each numbered item is a CV bullet point that has {shorten_by} trailing "
-            "on a new line when typeset (a widow). Remove the fewest words possible — "
-            f"ideally just {shorten_by} — so the bullet fits on one fewer line. "
-            "Do not change meaning. Return one line per item in the same numbered format.\n\n"
+            "Each numbered item is a CV bullet point that has exactly 1 word trailing "
+            "on a new line when typeset (a widow word). Add the fewest words possible — "
+            "ideally just 1 word — at the end of the bullet so the widow word merges "
+            "back onto the previous line. The addition must be natural and professional. "
+            "Do not change the existing content. "
+            "Return one line per item in the same numbered format.\n\n"
             + entries
         )
         try:
@@ -1318,36 +1353,164 @@ async def apply_line_rules(profile: dict, long_cv: bool = False) -> dict:
     return p
 
 
-async def build_one_page_cv(enhanced_profile: dict):
+async def _compress_bullets_step(profile: dict, client) -> dict:
     """
-    Generate latex + pdf, iteratively tightening max_bullets until the PDF fits
-    on 1 page. Tries max_bullets 3 → 2 → 1 for candidates without 7+ years exp.
-    Returns (latex_source, pdf_bytes).
+    Step 2: For sections with >3 bullets, combine/summarise to reduce redundancy.
     """
     import copy
+    from openai import AsyncOpenAI
+
+    SECTIONS = ("work_experience", "education", "projects", "extracurriculars")
+    p = copy.deepcopy(profile)
+
+    to_combine = []
+    for section in SECTIONS:
+        for entry in (p.get(section) or []):
+            desc = entry.get("description")
+            if isinstance(desc, list) and len(desc) > 3:
+                to_combine.append(
+                    (list(desc), lambda v, e=entry: e.__setitem__("description", v))
+                )
+
+    if not to_combine:
+        return p
+
+    sections_text = "\n\n".join(
+        "ENTRY {}:\n{}".format(i + 1, "\n".join(f"- {b}" for b in bullets))
+        for i, (bullets, _) in enumerate(to_combine)
+    )
+    prompt = (
+        "Each ENTRY below has more than 3 CV bullets. Combine and summarise them "
+        "to reduce redundancy while keeping all key information. Target 3 bullets "
+        "per entry, 2 at minimum. Each bullet must stay under 110 characters. "
+        "Use strong action verbs. Do not invent new facts.\n\n"
+        "Return in exactly this format:\n"
+        "ENTRY 1:\n- bullet\n- bullet\n\nENTRY 2:\n- bullet\n\n"
+        + sections_text
+    )
+    try:
+        resp = await client.responses.create(model="gpt-4o-mini", input=prompt)
+        current_idx = None
+        current_bullets: list[str] = []
+
+        def _flush():
+            if current_idx is not None and 0 <= current_idx < len(to_combine):
+                if current_bullets:
+                    to_combine[current_idx][1](list(current_bullets))
+
+        for line in resp.output_text.strip().splitlines():
+            line = line.strip()
+            m = re.match(r"^ENTRY\s+(\d+):?$", line, re.IGNORECASE)
+            if m:
+                _flush()
+                current_idx = int(m.group(1)) - 1
+                current_bullets = []
+            elif line.startswith(("-", "•")) and current_idx is not None:
+                bullet = re.sub(r"^[-•]\s*", "", line).strip()
+                if bullet:
+                    current_bullets.append(bullet)
+        _flush()
+    except Exception:
+        pass
+
+    return p
+
+
+def _merge_skill_sections(profile: dict) -> dict:
+    """
+    Step 3: If >1 skill sub-section exists and any has <4 skills, merge all
+    into a single flat 'Technical & Soft Skills' list.
+    """
+    import copy
+    p = copy.deepcopy(profile)
+
+    skills = p.get("skills")
+    if not isinstance(skills, list):
+        return p
+
+    # Skills is a list of dicts: [{category, items: [...]}]
+    non_empty = [s for s in skills if isinstance(s.get("items"), list) and s["items"]]
+    if len(non_empty) <= 1:
+        return p
+
+    has_small = any(len(s["items"]) < 4 for s in non_empty)
+    if not has_small:
+        return p
+
+    all_items: list[str] = []
+    for s in non_empty:
+        all_items.extend(s["items"])
+
+    # Deduplicate preserving order
+    seen: set = set()
+    merged: list[str] = []
+    for item in all_items:
+        key = item.strip().lower()
+        if key not in seen:
+            seen.add(key)
+            merged.append(item)
+
+    p["skills"] = [{"category": "Technical & Soft Skills", "items": merged}]
+    return p
+
+
+async def build_one_page_cv(enhanced_profile: dict, allow_two_pages: bool = False):
+    """
+    Full compression pipeline. Returns (latex_source, pdf_bytes, compression_warning).
+    compression_warning=True means we exhausted all compression options and the
+    content still doesn't fit; the caller should tell the user.
+    """
+    import copy
+    from openai import AsyncOpenAI
+
+    if allow_two_pages or compute_allow_two_pages(enhanced_profile):
+        latex = generate_latex_cv(enhanced_profile)
+        pdf   = compile_to_pdf(latex)
+        return latex, pdf, False
+
+    client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY")) if os.getenv("OPENAI_API_KEY") else None
 
     long = estimate_cv_overlong(enhanced_profile)
     p = await apply_line_rules(enhanced_profile, long_cv=long)
 
-    if compute_allow_two_pages(p):
-        latex = generate_latex_cv(p)
-        pdf   = compile_to_pdf(latex)
-        return latex, pdf
-
-    # Hard rule: < 7 years experience must fit on 1 page.
-    # Reassessed on every call so edits always reflect the correct page count.
-    pdf = None
-    latex = None
-    for mb in [3, 2, 1]:
-        latex = generate_latex_cv(p, max_bullets_override=mb, compact_skills=True)
+    def _try_compile(profile_dict, **latex_kwargs):
+        latex = generate_latex_cv(profile_dict, **latex_kwargs)
         try:
-            pdf, pages = compile_to_pdf_checked(latex)
+            pdf_bytes, pages = compile_to_pdf_checked(latex)
+            return latex, pdf_bytes, pages
         except RuntimeError:
             raise
-        if pages <= 1:
-            return latex, pdf
 
-    # Still 2 pages with 1 bullet each — strip low-priority sections one by one.
+    # ── Quick check: fits already? ────────────────────────────────────────────
+    latex, pdf, pages = _try_compile(p)
+    if pages <= 1:
+        return latex, pdf, False
+
+    # ── Step 1: widow fix already done in apply_line_rules ───────────────────
+    latex, pdf, pages = _try_compile(p)
+    if pages <= 1:
+        return latex, pdf, False
+
+    # ── Step 2: combine bullets in sections with >3 bullets ──────────────────
+    if client:
+        p = await _compress_bullets_step(p, client)
+    latex, pdf, pages = _try_compile(p)
+    if pages <= 1:
+        return latex, pdf, False
+
+    # ── Step 3: merge small skill sub-sections ───────────────────────────────
+    p = _merge_skill_sections(p)
+    latex, pdf, pages = _try_compile(p)
+    if pages <= 1:
+        return latex, pdf, False
+
+    # ── Fallback: reduce max_bullets 3→2→1 + compact skills ─────────────────
+    for mb in [3, 2, 1]:
+        latex, pdf, pages = _try_compile(p, max_bullets_override=mb, compact_skills=True)
+        if pages <= 1:
+            return latex, pdf, False
+
+    # ── Absolute last resort: strip low-priority sections one by one ─────────
     LOW_PRIORITY = ["extracurriculars", "certifications", "awards", "summary"]
     p_slim = copy.deepcopy(p)
     for section in LOW_PRIORITY:
@@ -1359,15 +1522,15 @@ async def build_one_page_cv(enhanced_profile: dict):
             if not p_slim.get(section):
                 continue
             p_slim[section] = []
-        latex = generate_latex_cv(p_slim, max_bullets_override=1, compact_skills=True)
         try:
-            pdf, pages = compile_to_pdf_checked(latex)
+            latex, pdf, pages = _try_compile(p_slim, max_bullets_override=1, compact_skills=True)
         except RuntimeError:
             break
         if pages <= 1:
-            return latex, pdf
+            return latex, pdf, False
 
-    return latex, pdf  # absolute best effort
+    # ── Compression warning: return best effort + signal to frontend ──────────
+    return latex, pdf, True
 
 
 @app.post("/enhance-description")
@@ -1433,17 +1596,24 @@ async def preview_cv(
 
     candidate_profile = payload.get("candidate_profile")
     job_id_to_update  = payload.get("job_id")  # present when editing a saved CV
+    allow_two_pages   = bool(payload.get("allow_two_pages", False))
     if not candidate_profile:
         raise HTTPException(status_code=400, detail="Missing candidate_profile")
 
-    enhanced_profile = await auto_enhance_cv_descriptions(candidate_profile)
+    cleaned_profile  = clean_profile_input(candidate_profile)
+    enhanced_profile = await auto_enhance_cv_descriptions(cleaned_profile)
 
     try:
-        latex_source, pdf_bytes = await build_one_page_cv(enhanced_profile)
+        latex_source, pdf_bytes, compression_warning = await build_one_page_cv(
+            enhanced_profile, allow_two_pages=allow_two_pages
+        )
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Preview generation failed: {exc}")
+
+    if compression_warning:
+        return {"compression_warning": True}
 
     # If editing an existing CV, persist the compiled result so downloads
     # always reflect the latest preview without a separate Save action.

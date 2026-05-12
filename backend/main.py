@@ -9,6 +9,7 @@ import time
 import hashlib
 import secrets
 import requests
+import stripe
 from collections import defaultdict
 from datetime import datetime
 
@@ -78,6 +79,54 @@ def assert_safe_text(value: str, field: str):
             status_code=400,
             detail=f"{field} contains disallowed characters.",
         )
+
+
+def get_month_key() -> str:
+    return datetime.utcnow().strftime("%Y-%m")
+
+
+def is_pro(user: User) -> bool:
+    return user.subscription_tier == "pro" and user.subscription_status == "active"
+
+
+def check_and_increment_uploads(user: User, db) -> tuple[bool, str]:
+    mk = get_month_key()
+    if user.uploads_month_key != mk:
+        user.uploads_this_month = 0
+        user.uploads_month_key = mk
+    if is_pro(user):
+        if (user.uploads_this_month or 0) >= 50:
+            return False, "monthly_limit"
+    else:
+        if (user.uploads_this_month or 0) >= 2:
+            return False, "upgrade_required"
+    user.uploads_this_month = (user.uploads_this_month or 0) + 1
+    db.commit()
+    return True, "ok"
+
+
+def check_and_increment_builds(user: User, db) -> tuple[bool, str]:
+    mk = get_month_key()
+    if user.builds_month_key != mk:
+        user.cv_builds_this_month = 0
+        user.builds_month_key = mk
+    if not is_pro(user) and (user.cv_builds_this_month or 0) >= 3:
+        return False, "upgrade_required"
+    user.cv_builds_this_month = (user.cv_builds_this_month or 0) + 1
+    db.commit()
+    return True, "ok"
+
+
+def check_and_increment_searches(user: User, db) -> tuple[bool, str]:
+    mk = get_month_key()
+    if user.searches_month_key != mk:
+        user.job_searches_this_month = 0
+        user.searches_month_key = mk
+    if not is_pro(user) and (user.job_searches_this_month or 0) >= 5:
+        return False, "upgrade_required"
+    user.job_searches_this_month = (user.job_searches_this_month or 0) + 1
+    db.commit()
+    return True, "ok"
 
 
 def validate_candidate_profile(profile: dict):
@@ -210,7 +259,13 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 DEV_MODE = os.getenv("DEV_MODE", "true").lower() == "true"
 
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-FRONTEND_URL   = os.getenv("FRONTEND_URL", "http://127.0.0.1")
+FRONTEND_URL   = os.getenv("FRONTEND_URL", "https://cvora.pages.dev")
+
+stripe.api_key          = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET   = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_PRICE_MONTHLY    = os.getenv("STRIPE_PRICE_MONTHLY", "")
+STRIPE_PRICE_YEARLY     = os.getenv("STRIPE_PRICE_YEARLY", "")
+
 print(f"[STARTUP] RESEND={'set' if RESEND_API_KEY else 'MISSING'} FRONTEND_URL={FRONTEND_URL}", flush=True)
 
 
@@ -467,8 +522,13 @@ def get_profile(user_id: str = Depends(get_current_user_id)):
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         return {
-            "email":      user.email,
-            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "email":                  user.email,
+            "created_at":             user.created_at.isoformat() if user.created_at else None,
+            "subscription_tier":      user.subscription_tier or "free",
+            "subscription_status":    user.subscription_status or "inactive",
+            "uploads_this_month":     user.uploads_this_month or 0,
+            "cv_builds_this_month":   user.cv_builds_this_month or 0,
+            "job_searches_this_month": user.job_searches_this_month or 0,
         }
     finally:
         db.close()
@@ -771,7 +831,6 @@ async def upload_cv(
 ):
     rate_limit(f"upload:{user_id}", max_calls=20, window=3600)
 
-    # Validate file type by extension and MIME
     allowed_mime = {"application/pdf", "application/x-pdf"}
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
@@ -780,6 +839,15 @@ async def upload_cv(
 
     db = SessionLocal()
     try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        allowed, reason = check_and_increment_uploads(user, db)
+        if not allowed:
+            if reason == "upgrade_required":
+                raise HTTPException(status_code=402, detail={"detail": "upgrade_required", "limit": "free_upload_limit"})
+            raise HTTPException(status_code=429, detail={"detail": "monthly_limit_reached", "limit": "pro_upload_limit", "contact": "cvora.contact@gmail.com"})
+
         job_id    = str(uuid.uuid4())
         safe_name = re.sub(r"[^\w\.\-]", "_", file.filename)[:100]
         file_path = f"{UPLOAD_FOLDER}/{job_id}_{safe_name}"
@@ -824,6 +892,13 @@ async def build_cv(
 
     db = SessionLocal()
     try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        allowed, reason = check_and_increment_builds(user, db)
+        if not allowed:
+            raise HTTPException(status_code=402, detail={"detail": "upgrade_required", "limit": "free_build_limit"})
+
         candidate_profile = payload.get("candidate_profile")
         if not candidate_profile:
             raise HTTPException(status_code=400, detail="Missing candidate_profile")
@@ -1576,10 +1651,111 @@ def approve_cv(
         if job.status not in ("cv_generated",):
             raise HTTPException(status_code=400, detail=f"Job is not in cv_generated state (current: {job.status})")
 
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            allowed, reason = check_and_increment_searches(user, db)
+            if not allowed:
+                raise HTTPException(status_code=402, detail={"detail": "upgrade_required", "limit": "free_search_limit"})
+
         job.is_cv_approved = "true"
         job.status = "pending_matching"
         db.commit()
         return {"job_id": job_id, "status": "pending_matching"}
+    finally:
+        db.close()
+
+
+@app.post("/create-checkout-session")
+async def create_checkout_session(payload: dict, user_id: str = Depends(get_current_user_id)):
+    interval = payload.get("interval", "month")
+    price_id = STRIPE_PRICE_YEARLY if interval == "year" else STRIPE_PRICE_MONTHLY
+    if not price_id or not stripe.api_key:
+        raise HTTPException(status_code=503, detail="Payments not configured")
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        customer_id = user.stripe_customer_id
+        if not customer_id:
+            customer = stripe.Customer.create(email=user.email, metadata={"user_id": user_id})
+            customer_id = customer.id
+            user.stripe_customer_id = customer_id
+            db.commit()
+
+        session = stripe.checkout.Session.create(
+            customer=customer_id,
+            payment_method_types=["card"],
+            line_items=[{"price": price_id, "quantity": 1}],
+            mode="subscription",
+            success_url=f"{FRONTEND_URL}/app.html?upgrade=success",
+            cancel_url=f"{FRONTEND_URL}/pricing.html",
+            metadata={"user_id": user_id},
+        )
+        return {"url": session.url}
+    finally:
+        db.close()
+
+
+@app.post("/stripe-webhook", include_in_schema=False)
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+    try:
+        event = stripe.Webhook.construct_event(payload, sig, STRIPE_WEBHOOK_SECRET)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid webhook signature")
+
+    db = SessionLocal()
+    try:
+        def _get_user_by_customer(customer_id: str):
+            return db.query(User).filter(User.stripe_customer_id == customer_id).first()
+
+        et = event["type"]
+        obj = event["data"]["object"]
+
+        if et in ("customer.subscription.created", "customer.subscription.updated"):
+            user = _get_user_by_customer(obj["customer"])
+            if user:
+                status = obj["status"]
+                user.stripe_subscription_id = obj["id"]
+                user.subscription_tier  = "pro" if status == "active" else "free"
+                user.subscription_status = status
+                db.commit()
+
+        elif et == "customer.subscription.deleted":
+            user = _get_user_by_customer(obj["customer"])
+            if user:
+                user.subscription_tier   = "free"
+                user.subscription_status = "canceled"
+                db.commit()
+
+        elif et == "invoice.payment_failed":
+            customer_id = obj.get("customer")
+            user = _get_user_by_customer(customer_id) if customer_id else None
+            if user:
+                user.subscription_status = "past_due"
+                db.commit()
+
+    finally:
+        db.close()
+
+    return {"received": True}
+
+
+@app.post("/cancel-subscription")
+async def cancel_subscription(user_id: str = Depends(get_current_user_id)):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user or not user.stripe_subscription_id:
+            raise HTTPException(status_code=404, detail="No active subscription found")
+        stripe.Subscription.modify(user.stripe_subscription_id, cancel_at_period_end=True)
+        user.subscription_status = "canceling"
+        db.commit()
+        return {"status": "canceling"}
     finally:
         db.close()
 

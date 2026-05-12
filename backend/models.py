@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, ForeignKey, DateTime, Boolean
+from sqlalchemy import Column, String, Text, ForeignKey, DateTime, Boolean, Integer
 from sqlalchemy.sql import func
 from database import Base
 
@@ -14,6 +14,16 @@ class User(Base):
     verification_token_hash = Column(String, nullable=True, index=True)
     created_at              = Column(DateTime, server_default=func.now(), nullable=True)
     is_deleted              = Column(Boolean, default=False, nullable=True)
+    stripe_customer_id      = Column(String, nullable=True)
+    stripe_subscription_id  = Column(String, nullable=True)
+    subscription_tier       = Column(String, default="free", nullable=False)
+    subscription_status     = Column(String, default="inactive", nullable=True)
+    uploads_this_month      = Column(Integer, default=0, nullable=False)
+    uploads_month_key       = Column(String, nullable=True)
+    cv_builds_this_month    = Column(Integer, default=0, nullable=False)
+    builds_month_key        = Column(String, nullable=True)
+    job_searches_this_month = Column(Integer, default=0, nullable=False)
+    searches_month_key      = Column(String, nullable=True)
 
 
 class Job(Base):

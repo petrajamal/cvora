@@ -429,6 +429,51 @@ _adzuna_cache: dict = {}
 _jsearch_cache: dict = {}
 _JOB_CACHE_TTL = 7200  # 2 hours — jobs don't change that fast
 
+# ── Title synonym cache (GPT-4o-mini, per-process lifetime) ──────────────────
+_TITLE_SYNONYM_CACHE: dict = {}
+
+
+def get_title_synonyms(title: str) -> list:
+    """Return up to 3 common alternative job titles for `title` via GPT.
+
+    Results are cached for the lifetime of the process — one LLM call per
+    unique (normalised) title.  Falls back to an empty list on any error.
+    """
+    key = title.strip().lower()
+    if not key:
+        return []
+    if key in _TITLE_SYNONYM_CACHE:
+        return _TITLE_SYNONYM_CACHE[key]
+
+    try:
+        resp = client.responses.create(
+            model="gpt-4o-mini",
+            input=(
+                f"List up to 3 common alternative job titles that employers use "
+                f"when posting for the same role as '{title}'. "
+                f"Return only a JSON array of strings, no explanation. "
+                f"Example: [\"Product Manager\", \"PM\", \"Digital Product Owner\"]"
+            ),
+        )
+        import json as _json
+        text = (resp.output_text or "").strip()
+        # Strip markdown fences if present
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        synonyms = _json.loads(text)
+        if isinstance(synonyms, list):
+            synonyms = [s for s in synonyms if isinstance(s, str) and s.strip()]
+        else:
+            synonyms = []
+    except Exception as exc:
+        print(f"[JOBS] title synonym lookup failed for '{title}': {exc}")
+        synonyms = []
+
+    _TITLE_SYNONYM_CACHE[key] = synonyms
+    return synonyms
+
 def fetch_jobs_cached(ai_data: dict, preferences: dict) -> list:
     # Key by the actual Adzuna query params, not the full profile.
     # build_search_query only uses job title/target fields — skills are irrelevant.
@@ -757,13 +802,14 @@ def fetch_jobs_from_jsearch(ai_data, preferences):
 
     query, country_code = build_jsearch_query(ai_data, preferences)
 
-    # Build a shorter fallback query (first 1-2 meaningful words)
-    query_words   = query.split()
-    broader_query = " ".join(query_words[:2]) if len(query_words) > 2 else query
+    # Attempt 2: first GPT synonym (e.g. "Process Improvement Analyst" → "Business Analyst").
+    # Falls back to truncating to first 2 words if GPT gives nothing.
+    synonyms      = get_title_synonyms(query)
+    synonym_query = synonyms[0] if synonyms else (" ".join(query.split()[:2]) if len(query.split()) > 2 else query)
 
     attempts = [
-        (query,         country_code, remote_only),   # attempt 1: precise
-        (broader_query, country_code, remote_only),   # attempt 2: broader title
+        (query,         country_code, remote_only),   # attempt 1: precise title
+        (synonym_query, country_code, remote_only),   # attempt 2: GPT synonym
         (query,         None,         remote_only),   # attempt 3: no country filter
     ]
 

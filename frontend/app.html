@@ -617,21 +617,22 @@
     .entry-card {
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 14px 16px 14px;
       margin-bottom: 10px;
       background: var(--surface);
       box-shadow: var(--shadow-xs);
-      position: relative;
+      overflow: hidden;
     }
 
-    /* ── Card header: title + actions on one row ── */
+    /* ── Card header: grey bar matching section headers ── */
     .entry-card-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 14px;
-      padding-bottom: 10px;
+      padding: 9px 14px;
+      background: var(--bg-muted);
       border-bottom: 1px solid var(--border);
+      gap: 12px;
+      min-height: 38px;
     }
 
     .entry-card h4 {
@@ -641,6 +642,16 @@
       letter-spacing: 0.07em;
       text-transform: uppercase;
       margin: 0;
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* ── Card body: flex column with consistent gap ── */
+    .entry-card-body {
+      padding: 14px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
 
     .entry-card label {
@@ -649,7 +660,28 @@
       color: #9CA3AF;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      margin: 10px 0 3px;
+      margin: 0 0 4px;
+      display: block;
+    }
+
+    /* Checkbox labels inside entry cards — readable, not uppercase */
+    .entry-checkbox-label {
+      display: flex !important;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px !important;
+      font-weight: 400 !important;
+      color: var(--text-secondary) !important;
+      letter-spacing: 0 !important;
+      text-transform: none !important;
+      margin: 0 !important;
+      cursor: pointer;
+    }
+    .entry-checkbox-label input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+      flex-shrink: 0;
+      accent-color: var(--primary);
     }
 
     /* Compact inputs inside entry cards */
@@ -666,59 +698,68 @@
       background: #fff;
     }
 
-    .entry-card input[type="checkbox"] {
-      width: auto;
-      margin: 0;
-      accent-color: var(--primary);
+    /* Month + Year side-by-side picker */
+    .month-year-row {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      gap: 8px;
     }
 
-    /* Grade row bottom spacing */
-    .grade-gpa-row input,
-    .grade-pct-row input,
-    .grade-letter-row select {
-      margin-bottom: 8px;
-    }
+    /* Grade sub-rows */
+    .grade-gpa-row,
+    .grade-pct-row,
+    .grade-letter-row { margin-top: 6px; }
 
     /* Project URL row */
-    .url-row input { margin-bottom: 8px; }
+    .add-url-btn { align-self: flex-start; }
 
     /* ── INLINE ACTIONS (inside card header) ── */
     .inline-actions {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       flex-shrink: 0;
     }
 
     .entry-visibility-btn {
       background: transparent !important;
-      color: #4F46E5 !important;
-      border: 1.5px solid #4F46E5 !important;
-      padding: 3px 7px !important;
-      font-size: 10px !important;
+      color: var(--text-muted) !important;
+      border: 1.5px solid var(--border-strong) !important;
+      padding: 4px 8px !important;
       border-radius: var(--radius-xs) !important;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
+      gap: 4px;
       line-height: 1;
+      font-size: 11px !important;
+      font-weight: 500 !important;
       box-shadow: none !important;
+      transition: color 0.15s, border-color 0.15s !important;
+      white-space: nowrap;
+    }
+    .entry-visibility-btn:hover {
+      color: var(--primary) !important;
+      border-color: var(--primary-border) !important;
+      opacity: 1 !important;
     }
     .entry-visibility-btn.is-hidden {
       color: #9CA3AF !important;
       border-color: #D1D5DB !important;
     }
-    .entry-visibility-btn:hover { opacity: 0.75; }
 
     .remove-entry-btn {
       background: transparent !important;
       color: var(--danger) !important;
-      border: 1px solid var(--danger-border) !important;
-      padding: 3px 10px !important;
-      font-size: 10px !important;
-      font-weight: 700 !important;
+      border: 1.5px solid var(--danger-border) !important;
+      padding: 4px 10px !important;
+      font-size: 11px !important;
+      font-weight: 600 !important;
       border-radius: var(--radius-xs) !important;
-      letter-spacing: 0.05em !important;
-      text-transform: uppercase !important;
+      letter-spacing: 0.02em !important;
+      text-transform: none !important;
+      white-space: nowrap;
+      transition: background 0.15s !important;
     }
     .remove-entry-btn:hover {
       background: var(--danger-light) !important;
@@ -831,6 +872,12 @@
       gap: 10px;
     }
 
+    #builderForm {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
     /* Builder page header */
     .builder-header {
       background: var(--surface);
@@ -890,7 +937,7 @@
     .form-section-actions {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 10px;
       flex-shrink: 0;
     }
 

@@ -574,13 +574,55 @@ function createEntryCard(title, innerHtml) {
       <div class="entry-card-header">
         <h4>${title}</h4>
         <div class="inline-actions">
-          <button type="button" class="entry-visibility-btn" title="Hide from CV" aria-label="Toggle visibility">${_EYE_OPEN}</button>
-          <button type="button" class="remove-entry-btn">Remove</button>
+          <button type="button" class="entry-visibility-btn" title="Hide from CV" aria-label="Toggle visibility">${_EYE_OPEN} Hide</button>
+          <button type="button" class="remove-entry-btn">✕ Remove</button>
         </div>
       </div>
-      ${innerHtml}
+      <div class="entry-card-body">
+        ${innerHtml}
+      </div>
     </div>
   `;
+}
+
+const _MONTHS = [
+  ["01","January"],["02","February"],["03","March"],["04","April"],
+  ["05","May"],["06","June"],["07","July"],["08","August"],
+  ["09","September"],["10","October"],["11","November"],["12","December"],
+];
+
+function monthYearHtml(baseClass, labelText) {
+  const opts = _MONTHS.map(([v, n]) => `<option value="${v}">${n}</option>`).join("");
+  return `<div class="field-group">
+    <label>${labelText}</label>
+    <div class="month-year-row">
+      <select class="${baseClass}-month"><option value="">Month</option>${opts}</select>
+      <input type="number" class="${baseClass}-year" min="1950" max="2035" placeholder="Year" />
+    </div>
+  </div>`;
+}
+
+function getMonthYear(card, baseClass) {
+  const m = card.querySelector(`.${baseClass}-month`)?.value || "";
+  const y = (card.querySelector(`.${baseClass}-year`)?.value || "").trim();
+  if (!y) return "";
+  return m ? `${y.padStart(4, "0")}-${m}` : y.padStart(4, "0");
+}
+
+function setMonthYear(card, baseClass, value) {
+  if (!value) return;
+  const [y, m] = value.split("-");
+  const yEl = card.querySelector(`.${baseClass}-year`);
+  const mEl = card.querySelector(`.${baseClass}-month`);
+  if (yEl && y) yEl.value = y;
+  if (mEl && m) mEl.value = m;
+}
+
+function disableMonthYear(card, baseClass, disabled) {
+  const yEl = card.querySelector(`.${baseClass}-year`);
+  const mEl = card.querySelector(`.${baseClass}-month`);
+  if (yEl) { yEl.disabled = disabled; if (disabled) yEl.value = ""; }
+  if (mEl) { mEl.disabled = disabled; if (disabled) mEl.value = ""; }
 }
 
 function attachRemoveHandlers(containerId) {
@@ -601,26 +643,35 @@ function attachRemoveHandlers(containerId) {
 function addLinkEntry() {
   const container = document.getElementById("linksEntries");
   container.insertAdjacentHTML("beforeend", createEntryCard("Link", `
-    <label>Link Type</label>
-    <select class="link-type-select">
-      <option value="linkedin">LinkedIn</option>
-      <option value="github">GitHub</option>
-      <option value="portfolio">Portfolio</option>
-      <option value="website">Website</option>
-      <option value="twitter">Twitter / X</option>
-      <option value="behance">Behance</option>
-      <option value="dribbble">Dribbble</option>
-      <option value="leetcode">LeetCode</option>
-      <option value="other">Other</option>
-    </select>
-    <input class="link-type-custom" placeholder="Specify type" maxlength="50" style="display:none;" />
-    <input class="link-url" type="url" placeholder="https://..." maxlength="500" />
-    <input class="link-display" placeholder="Display text (max 100 chars)" maxlength="100" />
+    <div class="field-row-2">
+      <div class="field-group">
+        <label>Type</label>
+        <select class="link-type-select">
+          <option value="linkedin">LinkedIn</option>
+          <option value="github">GitHub</option>
+          <option value="portfolio">Portfolio</option>
+          <option value="website">Website</option>
+          <option value="twitter">Twitter / X</option>
+          <option value="behance">Behance</option>
+          <option value="dribbble">Dribbble</option>
+          <option value="leetcode">LeetCode</option>
+          <option value="other">Other</option>
+        </select>
+        <input class="link-type-custom" placeholder="Specify type" maxlength="50" style="display:none;margin-top:6px;" />
+      </div>
+      <div class="field-group">
+        <label>URL</label>
+        <input class="link-url" type="url" placeholder="https://..." maxlength="500" />
+      </div>
+    </div>
+    <div class="field-group">
+      <label>Display Text (optional)</label>
+      <input class="link-display" placeholder="e.g. linkedin.com/in/yourname" maxlength="100" />
+    </div>
   `));
   const card = container.lastElementChild;
   attachRemoveHandlers("linksEntries");
   attachUrlLengthCheck(card.querySelector(".link-url"), 200);
-  // show custom input when "Other" selected
   const sel = card.querySelector(".link-type-select");
   const custom = card.querySelector(".link-type-custom");
   sel.addEventListener("change", () => {
@@ -632,83 +683,82 @@ function addLinkEntry() {
 function addEducationEntry() {
   const container = document.getElementById("educationEntries");
   container.insertAdjacentHTML("beforeend", createEntryCard("Education", `
-    <label class="required-mark">Institution</label>
-    <input class="education-institution" placeholder="e.g. University of Oxford" maxlength="200" required />
-
-    <label>Degree / Type of Study *</label>
-    <select class="education-degree-select" required>
-      <option value="">Select degree…</option>
-      <option>High School Diploma</option>
-      <option>Associate's Degree</option>
-      <option>Bachelor of Science (BS)</option>
-      <option>Bachelor of Arts (BA)</option>
-      <option>Bachelor of Engineering (BEng)</option>
-      <option>Bachelor of Business Administration (BBA)</option>
-      <option>Bachelor of Commerce (BCom)</option>
-      <option>Master of Science (MS/MSc)</option>
-      <option>Master of Arts (MA)</option>
-      <option>Master of Business Administration (MBA)</option>
-      <option>Master of Engineering (MEng)</option>
-      <option>PhD / Doctorate</option>
-      <option>Medical Degree (MD)</option>
-      <option>Law Degree (JD/LLB)</option>
-      <option>Diploma</option>
-      <option>Certificate</option>
-      <option>Other</option>
-    </select>
-    <input class="education-degree-other" placeholder="Specify degree *" maxlength="150" style="display:none;" />
-
-    <input class="education-field" placeholder="Field of study (optional)" maxlength="150" />
-
+    <div class="field-group">
+      <label>Institution *</label>
+      <input class="education-institution" placeholder="e.g. University of Oxford" maxlength="200" required />
+    </div>
     <div class="field-row-2">
       <div class="field-group">
-        <label>Start Date *</label>
-        <input class="education-start" type="month" required />
+        <label>Degree / Type of Study *</label>
+        <select class="education-degree-select" required>
+          <option value="">Select degree…</option>
+          <option>High School Diploma</option>
+          <option>Associate's Degree</option>
+          <option>Bachelor of Science (BS)</option>
+          <option>Bachelor of Arts (BA)</option>
+          <option>Bachelor of Engineering (BEng)</option>
+          <option>Bachelor of Business Administration (BBA)</option>
+          <option>Bachelor of Commerce (BCom)</option>
+          <option>Master of Science (MS/MSc)</option>
+          <option>Master of Arts (MA)</option>
+          <option>Master of Business Administration (MBA)</option>
+          <option>Master of Engineering (MEng)</option>
+          <option>PhD / Doctorate</option>
+          <option>Medical Degree (MD)</option>
+          <option>Law Degree (JD/LLB)</option>
+          <option>Diploma</option>
+          <option>Certificate</option>
+          <option>Other</option>
+        </select>
+        <input class="education-degree-other" placeholder="Specify degree *" maxlength="150" style="display:none;margin-top:6px;" />
       </div>
       <div class="field-group">
-        <label>End Date (or expected)</label>
-        <input class="education-end" type="month" />
+        <label>Field of Study (optional)</label>
+        <input class="education-field" placeholder="e.g. Computer Science" maxlength="150" />
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;margin:6px 0 8px;">
+    <div class="field-row-2">
+      ${monthYearHtml("education-start", "Start Date *")}
+      ${monthYearHtml("education-end", "End Date (or expected)")}
+    </div>
+    <label class="entry-checkbox-label">
       <input class="education-currently-enrolled" type="checkbox" />
-      <span style="font-size:13px;color:var(--text-secondary);">Currently enrolled / ongoing</span>
-    </div>
-
-    <label>Grade (optional)</label>
-    <select class="education-grade-type">
-      <option value="">No grade</option>
-      <option value="gpa">GPA (0.0 – 5.0)</option>
-      <option value="percentage">Percentage score</option>
-      <option value="letter">Letter grade</option>
-    </select>
-    <div class="grade-gpa-row" style="display:none;">
-      <input class="education-gpa-number" type="number" min="0" max="5" step="0.01"
-             placeholder="e.g. 3.85" />
-    </div>
-    <div class="grade-pct-row" style="display:none;">
-      <input class="education-pct-number" type="number" min="0" max="100" step="0.01"
-             placeholder="e.g. 88.50" />
-    </div>
-    <div class="grade-letter-row" style="display:none;">
-      <select class="education-letter-select">
-        <option>A+</option><option>A</option><option>A-</option>
-        <option>B+</option><option>B</option><option>B-</option>
-        <option>C+</option><option>C</option><option>C-</option>
-        <option>D+</option><option>D</option><option>D-</option>
-        <option>F</option>
+      Currently enrolled / ongoing
+    </label>
+    <div class="field-group">
+      <label>Grade (optional)</label>
+      <select class="education-grade-type">
+        <option value="">No grade</option>
+        <option value="gpa">GPA (0.0–5.0)</option>
+        <option value="percentage">Percentage score</option>
+        <option value="letter">Letter grade</option>
       </select>
+      <div class="grade-gpa-row" style="display:none;">
+        <input class="education-gpa-number" type="number" min="0" max="5" step="0.01" placeholder="e.g. 3.85" />
+      </div>
+      <div class="grade-pct-row" style="display:none;">
+        <input class="education-pct-number" type="number" min="0" max="100" step="0.01" placeholder="e.g. 88.50" />
+      </div>
+      <div class="grade-letter-row" style="display:none;">
+        <select class="education-letter-select">
+          <option>A+</option><option>A</option><option>A-</option>
+          <option>B+</option><option>B</option><option>B-</option>
+          <option>C+</option><option>C</option><option>C-</option>
+          <option>D+</option><option>D</option><option>D-</option>
+          <option>F</option>
+        </select>
+      </div>
     </div>
-
-    <label>Description (optional)</label>
-    <textarea class="education-description" rows="3" maxlength="2000"
-      placeholder="Notable coursework, achievements, thesis — one bullet per line"></textarea>
+    <div class="field-group">
+      <label>Description (optional)</label>
+      <textarea class="education-description" rows="3" maxlength="2000"
+        placeholder="Notable coursework, achievements, thesis — one bullet per line"></textarea>
+    </div>
   `));
   const card = container.lastElementChild;
   attachRemoveHandlers("educationEntries");
   attachWordCounter(card.querySelector(".education-description"), 200);
 
-  // Degree "Other" toggle
   const degSel = card.querySelector(".education-degree-select");
   const degOther = card.querySelector(".education-degree-other");
   degSel.addEventListener("change", () => {
@@ -717,15 +767,11 @@ function addEducationEntry() {
     degOther.required = isOther;
   });
 
-  // "Currently enrolled" disables end date
-  const enrolledCb  = card.querySelector(".education-currently-enrolled");
-  const eduEndInput = card.querySelector(".education-end");
+  const enrolledCb = card.querySelector(".education-currently-enrolled");
   enrolledCb.addEventListener("change", () => {
-    eduEndInput.disabled = enrolledCb.checked;
-    if (enrolledCb.checked) eduEndInput.value = "";
+    disableMonthYear(card, "education-end", enrolledCb.checked);
   });
 
-  // Grade type toggle
   const gradeType = card.querySelector(".education-grade-type");
   const gpaRow    = card.querySelector(".grade-gpa-row");
   const pctRow    = card.querySelector(".grade-pct-row");
@@ -747,70 +793,78 @@ function addExperienceEntry() {
   container.insertAdjacentHTML("beforeend", createEntryCard("Work Experience", `
     <div class="field-row-2">
       <div class="field-group">
-        <label class="required-mark">Organisation</label>
+        <label>Organisation *</label>
         <input class="experience-organization" placeholder="e.g. Google" maxlength="200" required />
       </div>
       <div class="field-group">
-        <label class="required-mark">Position</label>
+        <label>Position *</label>
         <input class="experience-position" placeholder="e.g. Software Engineer" maxlength="150" required />
       </div>
     </div>
-    <div class="field-row-2" style="margin-top:8px;">
-      <div class="field-group">
-        <label>Start Date *</label>
-        <input class="experience-start" type="month" required />
-      </div>
-      <div class="field-group">
-        <label>End Date</label>
-        <input class="experience-end" type="month" />
-      </div>
+    <div class="field-row-2">
+      ${monthYearHtml("experience-start", "Start Date *")}
+      ${monthYearHtml("experience-end", "End Date")}
     </div>
-    <div style="display:flex;align-items:center;gap:8px;margin:6px 0 8px;">
+    <label class="entry-checkbox-label">
       <input class="experience-currently-working" type="checkbox" />
-      <span style="font-size:13px;color:var(--text-secondary);">Currently working here</span>
+      Currently working here
+    </label>
+    <div class="field-group">
+      <label>Location (optional)</label>
+      <input class="experience-location" placeholder="e.g. Dubai, UAE" maxlength="100" />
     </div>
-    <input class="experience-location" placeholder="Location (optional)" maxlength="100" />
-    <textarea class="experience-description" rows="4" maxlength="2000"
-      placeholder="Responsibilities / achievements — one bullet per line *" required></textarea>
+    <div class="field-group">
+      <label>Responsibilities / Achievements *</label>
+      <textarea class="experience-description" rows="4" maxlength="2000"
+        placeholder="One bullet per line *" required></textarea>
+    </div>
   `));
   const card = container.lastElementChild;
   attachRemoveHandlers("experienceEntries");
   attachWordCounter(card.querySelector(".experience-description"), 200);
 
-  // "Currently working here" disables end date
-  const cwCb   = card.querySelector(".experience-currently-working");
-  const endInp = card.querySelector(".experience-end");
+  const cwCb = card.querySelector(".experience-currently-working");
   cwCb.addEventListener("change", () => {
-    endInp.disabled = cwCb.checked;
-    if (cwCb.checked) endInp.value = "";
+    disableMonthYear(card, "experience-end", cwCb.checked);
   });
-
 }
 
 function addProjectEntry() {
   const container = document.getElementById("projectEntries");
   container.insertAdjacentHTML("beforeend", createEntryCard("Project", `
-    <input class="project-title" placeholder="Title *" maxlength="150" required />
-    <input class="project-role" placeholder="Role (optional, max 100 chars)" maxlength="100" />
-    <input class="project-technologies"
-           placeholder="Technologies, comma-separated (optional)" maxlength="300" />
-    <label>Start Date (optional)</label>
-    <input class="project-start" type="month" />
-    <label>End Date (optional)</label>
-    <input class="project-end" type="month" />
-    <button type="button" class="add-url-btn">+ Add URL</button>
-    <div class="url-row" style="display:none;">
-      <input class="project-link" type="url" placeholder="https://…" maxlength="500"
-             style="margin-bottom:12px;" />
+    <div class="field-group">
+      <label>Title *</label>
+      <input class="project-title" placeholder="e.g. E-commerce Platform" maxlength="150" required />
     </div>
-    <textarea class="project-description" rows="4" maxlength="2000"
-      placeholder="Description bullets — one per line *" required></textarea>
+    <div class="field-row-2">
+      <div class="field-group">
+        <label>Role (optional)</label>
+        <input class="project-role" placeholder="e.g. Lead Developer" maxlength="100" />
+      </div>
+      <div class="field-group">
+        <label>Technologies (optional)</label>
+        <input class="project-technologies" placeholder="React, Node.js, …" maxlength="300" />
+      </div>
+    </div>
+    <div class="field-row-2">
+      ${monthYearHtml("project-start", "Start Date (optional)")}
+      ${monthYearHtml("project-end", "End Date (optional)")}
+    </div>
+    <button type="button" class="add-url-btn">+ Add URL</button>
+    <div class="url-row field-group" style="display:none;">
+      <label>Project URL</label>
+      <input class="project-link" type="url" placeholder="https://…" maxlength="500" />
+    </div>
+    <div class="field-group">
+      <label>Description *</label>
+      <textarea class="project-description" rows="4" maxlength="2000"
+        placeholder="Description bullets — one per line *" required></textarea>
+    </div>
   `));
   const card = container.lastElementChild;
   attachRemoveHandlers("projectEntries");
   attachWordCounter(card.querySelector(".project-description"), 200);
 
-  // URL toggle button + length validator
   const addBtn = card.querySelector(".add-url-btn");
   const urlRow = card.querySelector(".url-row");
   addBtn.addEventListener("click", () => {
@@ -825,12 +879,28 @@ function addExtracurricularEntry() {
   container.insertAdjacentHTML(
     "beforeend",
     createEntryCard("Extracurricular", `
-      <input class="extracurricular-title" placeholder="Title *" maxlength="150" required />
-      <input class="extracurricular-role" placeholder="Role *" maxlength="100" required />
-      <input class="extracurricular-organization" placeholder="Organization *" maxlength="200" required />
-      <label>Date (optional)</label>
-      <input class="extracurricular-date" type="month" />
-      <textarea class="extracurricular-description" rows="4" maxlength="2000" placeholder="Description (optional). Separate bullets with a new line."></textarea>
+      <div class="field-row-2">
+        <div class="field-group">
+          <label>Title *</label>
+          <input class="extracurricular-title" placeholder="e.g. Debate Club" maxlength="150" required />
+        </div>
+        <div class="field-group">
+          <label>Role *</label>
+          <input class="extracurricular-role" placeholder="e.g. President" maxlength="100" required />
+        </div>
+      </div>
+      <div class="field-row-2">
+        <div class="field-group">
+          <label>Organisation *</label>
+          <input class="extracurricular-organization" placeholder="e.g. AUB" maxlength="200" required />
+        </div>
+        ${monthYearHtml("extracurricular-date", "Date (optional)")}
+      </div>
+      <div class="field-group">
+        <label>Description (optional)</label>
+        <textarea class="extracurricular-description" rows="3" maxlength="2000"
+          placeholder="Separate bullets with a new line"></textarea>
+      </div>
     `)
   );
   const card = container.lastElementChild;
@@ -843,10 +913,17 @@ function addCertificationEntry() {
   container.insertAdjacentHTML(
     "beforeend",
     createEntryCard("Certification", `
-      <input class="certification-title" placeholder="Title *" maxlength="200" required />
-      <label>Date (optional)</label>
-      <input class="certification-date" type="month" />
-      <input class="certification-organization" placeholder="Organization (optional)" maxlength="200" />
+      <div class="field-row-2">
+        <div class="field-group">
+          <label>Title *</label>
+          <input class="certification-title" placeholder="e.g. AWS Solutions Architect" maxlength="200" required />
+        </div>
+        ${monthYearHtml("certification-date", "Date (optional)")}
+      </div>
+      <div class="field-group">
+        <label>Organisation (optional)</label>
+        <input class="certification-organization" placeholder="e.g. Amazon Web Services" maxlength="200" />
+      </div>
     `)
   );
   attachRemoveHandlers("certificationEntries");
@@ -857,10 +934,17 @@ function addAwardEntry() {
   container.insertAdjacentHTML(
     "beforeend",
     createEntryCard("Award", `
-      <input class="award-title" placeholder="Title *" maxlength="200" required />
-      <label>Date (optional)</label>
-      <input class="award-date" type="month" />
-      <input class="award-institution" placeholder="Institution (optional)" maxlength="200" />
+      <div class="field-row-2">
+        <div class="field-group">
+          <label>Title *</label>
+          <input class="award-title" placeholder="e.g. Dean's List" maxlength="200" required />
+        </div>
+        ${monthYearHtml("award-date", "Date (optional)")}
+      </div>
+      <div class="field-group">
+        <label>Institution (optional)</label>
+        <input class="award-institution" placeholder="e.g. MIT" maxlength="200" />
+      </div>
     `)
   );
   attachRemoveHandlers("awardEntries");
@@ -1022,7 +1106,7 @@ function buildCandidateProfile() {
     languages_hidden: document.getElementById("toggleLanguages")?.dataset.hidden === "true",
     certifications: collectEntries("certificationEntries", (card) => {
       const title = getTextValue(".certification-title", card);
-      const date = getTextValue(".certification-date", card);
+      const date = getMonthYear(card, "certification-date");
       const organization = getTextValue(".certification-organization", card);
       if (!title) return null;
       return { title, date: date || null, organization: organization || null, hidden: card.dataset.hidden === "true" };
@@ -1030,9 +1114,9 @@ function buildCandidateProfile() {
     work_experience: collectEntries("experienceEntries", (card) => {
       const organization = getTextValue(".experience-organization", card);
       const position     = getTextValue(".experience-position", card);
-      const start_date   = getTextValue(".experience-start", card);
+      const start_date   = getMonthYear(card, "experience-start");
       const isCurrent    = card.querySelector(".experience-currently-working")?.checked;
-      const end_date     = isCurrent ? "" : getTextValue(".experience-end", card);
+      const end_date     = isCurrent ? "" : getMonthYear(card, "experience-end");
       const location     = getTextValue(".experience-location", card);
       const description  = splitBullets(getTextValue(".experience-description", card));
       if (!organization && !position) return null;
@@ -1046,9 +1130,9 @@ function buildCandidateProfile() {
       const degOther = getTextValue(".education-degree-other", card);
       const degree   = degSel?.value === "Other" ? degOther : (degSel?.value || "");
 
-      const start_date   = getTextValue(".education-start", card);
+      const start_date   = getMonthYear(card, "education-start");
       const isEnrolled   = card.querySelector(".education-currently-enrolled")?.checked;
-      const end_date     = isEnrolled ? "" : getTextValue(".education-end", card);
+      const end_date     = isEnrolled ? "" : getMonthYear(card, "education-end");
       const field_of_study = getTextValue(".education-field", card);
 
       // Grade: depends on selected grade type
@@ -1077,8 +1161,8 @@ function buildCandidateProfile() {
         .filter(Boolean);
       const link = getTextValue(".project-link", card);
       const description = splitBullets(getTextValue(".project-description", card));
-      const start_date = card.querySelector(".project-start")?.value || null;
-      const end_date   = card.querySelector(".project-end")?.value   || null;
+      const start_date = getMonthYear(card, "project-start") || null;
+      const end_date   = getMonthYear(card, "project-end")   || null;
       if (!title && description.length === 0) return null;
       return {
         title,
@@ -1095,7 +1179,7 @@ function buildCandidateProfile() {
       const title = getTextValue(".extracurricular-title", card);
       const role = getTextValue(".extracurricular-role", card);
       const organization = getTextValue(".extracurricular-organization", card);
-      const date = getTextValue(".extracurricular-date", card);
+      const date = getMonthYear(card, "extracurricular-date");
       const description = splitBullets(getTextValue(".extracurricular-description", card));
       if (!title && !role && !organization) return null;
       return {
@@ -1109,7 +1193,7 @@ function buildCandidateProfile() {
     }),
     awards: collectEntries("awardEntries", (card) => {
       const title = getTextValue(".award-title", card);
-      const date = getTextValue(".award-date", card);
+      const date = getMonthYear(card, "award-date");
       const institution = getTextValue(".award-institution", card);
       if (!title) return null;
       return { title, date: date || null, institution: institution || null, hidden: card.dataset.hidden === "true" };
@@ -1225,14 +1309,13 @@ function validateBuilderForm() {
   }
 
   function validateDates(containerId, sectionLabel) {
+    const pfx = containerId === "experienceEntries" ? "experience" : "education";
     for (const card of document.querySelectorAll(`#${containerId} .entry-card`)) {
-      const startEl = card.querySelector('[class*="-start"]');
-      const endEl   = card.querySelector('[class*="-end"]');
       const isCurrent = card.querySelector(".experience-currently-working")?.checked
                      || card.querySelector(".education-currently-enrolled")?.checked;
-      if (!startEl || !endEl || isCurrent) continue;
-      const start = startEl.value;
-      const end   = endEl.value;
+      if (isCurrent) continue;
+      const start = getMonthYear(card, `${pfx}-start`);
+      const end   = getMonthYear(card, `${pfx}-end`);
       if (start && end && start > end) {
         return `${sectionLabel}: start date must be on or before end date.`;
       }
@@ -2349,12 +2432,12 @@ window.editBuilderCv = async function (jobId) {
       if (degOpt) { degSel.value = edu.degree; }
       else { degSel.value = "Other"; degSel.dispatchEvent(new Event("change")); degOther.value = edu.degree || ""; }
       card.querySelector(".education-field").value = edu.field_of_study || "";
-      card.querySelector(".education-start").value = edu.start_date || "";
+      setMonthYear(card, "education-start", edu.start_date);
       if (!edu.end_date) {
         card.querySelector(".education-currently-enrolled").checked = true;
-        card.querySelector(".education-end").disabled = true;
+        disableMonthYear(card, "education-end", true);
       } else {
-        card.querySelector(".education-end").value = edu.end_date || "";
+        setMonthYear(card, "education-end", edu.end_date);
       }
       // Grade
       if (edu.gpa) {
@@ -2391,12 +2474,12 @@ window.editBuilderCv = async function (jobId) {
       if (!card) return;
       card.querySelector(".experience-organization").value = exp.organization || "";
       card.querySelector(".experience-position").value = exp.position || "";
-      card.querySelector(".experience-start").value = exp.start_date || "";
+      setMonthYear(card, "experience-start", exp.start_date);
       if (!exp.end_date) {
         card.querySelector(".experience-currently-working").checked = true;
-        card.querySelector(".experience-end").disabled = true;
+        disableMonthYear(card, "experience-end", true);
       } else {
-        card.querySelector(".experience-end").value = exp.end_date || "";
+        setMonthYear(card, "experience-end", exp.end_date);
       }
       card.querySelector(".experience-location").value = exp.location || "";
       card.querySelector(".experience-description").value = (exp.description || []).join("\n");
@@ -2417,8 +2500,8 @@ window.editBuilderCv = async function (jobId) {
       card.querySelector(".project-title").value = proj.title || "";
       card.querySelector(".project-role").value = proj.role || "";
       card.querySelector(".project-technologies").value = (proj.technologies || []).join(", ");
-      card.querySelector(".project-start").value = proj.start_date || "";
-      card.querySelector(".project-end").value   = proj.end_date   || "";
+      setMonthYear(card, "project-start", proj.start_date);
+      setMonthYear(card, "project-end",   proj.end_date);
       if (proj.link) {
         const addBtn = card.querySelector(".add-url-btn");
         const urlRow = card.querySelector(".url-row");
@@ -2443,7 +2526,7 @@ window.editBuilderCv = async function (jobId) {
       card.querySelector(".extracurricular-title").value = ex.title || "";
       card.querySelector(".extracurricular-role").value = ex.role || "";
       card.querySelector(".extracurricular-organization").value = ex.organization || "";
-      card.querySelector(".extracurricular-date").value = ex.date || "";
+      setMonthYear(card, "extracurricular-date", ex.date);
       card.querySelector(".extracurricular-description").value = (ex.description || []).join("\n");
       if (ex.hidden) {
         card.dataset.hidden = "true";
@@ -2460,7 +2543,7 @@ window.editBuilderCv = async function (jobId) {
       const card = document.querySelector("#certificationEntries .entry-card:last-child");
       if (!card) return;
       card.querySelector(".certification-title").value = cert.title || "";
-      card.querySelector(".certification-date").value = cert.date || "";
+      setMonthYear(card, "certification-date", cert.date);
       card.querySelector(".certification-organization").value = cert.organization || "";
       if (cert.hidden) {
         card.dataset.hidden = "true";
@@ -2477,7 +2560,7 @@ window.editBuilderCv = async function (jobId) {
       const card = document.querySelector("#awardEntries .entry-card:last-child");
       if (!card) return;
       card.querySelector(".award-title").value = award.title || "";
-      card.querySelector(".award-date").value = award.date || "";
+      setMonthYear(card, "award-date", award.date);
       card.querySelector(".award-institution").value = award.institution || "";
       if (award.hidden) {
         card.dataset.hidden = "true";

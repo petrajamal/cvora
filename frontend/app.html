@@ -963,6 +963,100 @@
       transform: none !important;
     }
 
+    /* Allow 2-page toggle */
+    .two-page-toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 14px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+    .two-page-toggle-row:hover { background: var(--primary-light); border-color: var(--primary-border); }
+    .two-page-toggle-row input[type="checkbox"] { display: none; }
+    .toggle-track {
+      width: 34px;
+      height: 20px;
+      border-radius: 999px;
+      background: var(--border-strong);
+      position: relative;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      left: 3px;
+      top: 3px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: white;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    input:checked + .toggle-track { background: var(--primary); }
+    input:checked + .toggle-track::after { transform: translateX(14px); }
+    .two-page-toggle-row .toggle-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1.3;
+    }
+    .two-page-toggle-row .toggle-label small {
+      display: block;
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    /* compression warning popup */
+    #compressionWarningModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.45);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+    #compressionWarningModal.open { display: flex; }
+    #compressionWarningBox {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-lg);
+      padding: 28px 28px 22px;
+      max-width: 420px;
+      width: calc(100% - 32px);
+    }
+    #compressionWarningBox h4 {
+      margin: 0 0 10px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    #compressionWarningBox p {
+      margin: 0 0 20px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    #compressionWarningBox .warn-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    #compressionWarningBox .warn-actions button {
+      flex: 1;
+      min-width: 120px;
+    }
+
     /* App-wide footer */
     .app-footer {
       border-top: 1px solid var(--border);
@@ -2027,6 +2121,11 @@
                   <label class="required-mark">Target Fields <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">(e.g. IT, Marketing, Finance)</span></label>
                   <input id="fields" type="text" placeholder="IT, Marketing, Finance" maxlength="200" required />
                 </div>
+                <label class="two-page-toggle-row" for="allowTwoPageToggle">
+                  <input type="checkbox" id="allowTwoPageToggle" />
+                  <span class="toggle-track"></span>
+                  <span class="toggle-label">Allow 2-page resume<small>Off by default — enable if you have 7+ years of experience or extensive content</small></span>
+                </label>
               </div>
             </div>
 
@@ -2416,6 +2515,18 @@
     @media (max-width: 768px) { #pdfViewerModal > div { width: 95%; } }
     #dlDropdown button:hover { background: var(--bg) !important; }
   </style>
+
+  <!-- Compression warning modal -->
+  <div id="compressionWarningModal" role="dialog" aria-modal="true" aria-labelledby="compressionWarningTitle">
+    <div id="compressionWarningBox">
+      <h4 id="compressionWarningTitle">⚠️ Content too long to compress further</h4>
+      <p>We tried our best to compress your CV to one page, but there's still too much content. You can allow a 2-page resume, or go back and hide or shorten some sections manually.</p>
+      <div class="warn-actions">
+        <button type="button" id="warnAllow2PagesBtn">Allow 2-page resume</button>
+        <button type="button" id="warnOkBtn" style="background:var(--bg);color:var(--text);border:1px solid var(--border);">OK, I'll reduce content</button>
+      </div>
+    </div>
+  </div>
 
   <script src="/app.js"></script>
 </body>

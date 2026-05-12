@@ -1272,13 +1272,14 @@ async function updateCvPreview() {
   if (!validateBuilderForm()) return;
 
   const candidate_profile = buildCandidateProfile();
+  const allow_two_pages = !!(document.getElementById("allowTwoPageToggle")?.checked);
   previewStatus.innerHTML = `<span class="status-spinner"></span><span class="preview-status-busy">Generating preview…</span>`;
 
   try {
     const res = await apiFetch(`${BACKEND_URL}/preview-cv`, {
       method:  "POST",
       headers: authHeaders(),
-      body:    JSON.stringify({ candidate_profile, job_id: _builderSavedJobId || null }),
+      body:    JSON.stringify({ candidate_profile, job_id: _builderSavedJobId || null, allow_two_pages }),
     });
 
     if (!res.ok) {
@@ -1286,6 +1287,17 @@ async function updateCvPreview() {
       try { detail = (await res.json()).detail || detail; } catch (_) {}
       previewStatus.innerHTML = `<span class="preview-status-err">Preview failed — ${escapeHtml(detail)}</span>`;
       return;
+    }
+
+    // Backend returns JSON with compression_warning when content can't fit 1 page
+    const contentType = res.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      const data = await res.json();
+      if (data.compression_warning) {
+        previewStatus.innerHTML = `<span class="preview-status-err">Content too long — see warning.</span>`;
+        showCompressionWarning();
+        return;
+      }
     }
 
     const blob = await res.blob();
@@ -1307,6 +1319,29 @@ async function updateCvPreview() {
     previewStatus.innerHTML = `<span class="preview-status-err">Could not reach backend.</span>`;
   }
 }
+
+function showCompressionWarning() {
+  const modal = document.getElementById("compressionWarningModal");
+  if (modal) modal.classList.add("open");
+}
+
+function hideCompressionWarning() {
+  const modal = document.getElementById("compressionWarningModal");
+  if (modal) modal.classList.remove("open");
+}
+
+document.getElementById("warnAllow2PagesBtn")?.addEventListener("click", () => {
+  const toggle = document.getElementById("allowTwoPageToggle");
+  if (toggle) toggle.checked = true;
+  hideCompressionWarning();
+  updateCvPreview();
+});
+
+document.getElementById("warnOkBtn")?.addEventListener("click", hideCompressionWarning);
+
+document.getElementById("compressionWarningModal")?.addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) hideCompressionWarning();
+});
 
 // ── Reset all builder fields ──────────────────────────────────────────────────
 

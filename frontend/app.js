@@ -571,11 +571,13 @@ function _applyVisHidden(btn, card, nowHidden) {
 function createEntryCard(title, innerHtml) {
   return `
     <div class="entry-card">
-      <div class="inline-actions">
-        <button type="button" class="entry-visibility-btn" title="Hide from CV" aria-label="Toggle visibility">${_EYE_OPEN}</button>
-        <button type="button" class="remove-entry-btn">Remove</button>
+      <div class="entry-card-header">
+        <h4>${title}</h4>
+        <div class="inline-actions">
+          <button type="button" class="entry-visibility-btn" title="Hide from CV" aria-label="Toggle visibility">${_EYE_OPEN}</button>
+          <button type="button" class="remove-entry-btn">Remove</button>
+        </div>
       </div>
-      <h4>${title}</h4>
       ${innerHtml}
     </div>
   `;

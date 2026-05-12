@@ -616,29 +616,53 @@
     .entry-card {
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 18px 18px 14px;
+      padding: 14px 16px 14px;
       margin-bottom: 10px;
       background: var(--surface);
       box-shadow: var(--shadow-xs);
       position: relative;
     }
 
+    /* ── Card header: title + actions on one row ── */
+    .entry-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
     .entry-card h4 {
-      font-size: 12px;
-      font-weight: 600;
+      font-size: 10.5px;
+      font-weight: 700;
       color: var(--text-secondary);
-      letter-spacing: 0;
-      margin-bottom: 12px;
-      margin-top: 0;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      margin: 0;
     }
 
     .entry-card label {
-      font-size: 12px;
+      font-size: 10.5px;
       font-weight: 600;
-      color: var(--text-secondary);
-      letter-spacing: 0;
-      margin: 10px 0 4px;
-      text-transform: none;
+      color: #9CA3AF;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin: 10px 0 3px;
+    }
+
+    /* Compact inputs inside entry cards */
+    .entry-card input:not([type="checkbox"]):not([type="radio"]),
+    .entry-card textarea,
+    .entry-card select {
+      padding: 8px 11px;
+      font-size: 13px;
+      background: #F9FAFB;
+    }
+    .entry-card input:focus,
+    .entry-card textarea:focus,
+    .entry-card select:focus {
+      background: #fff;
     }
 
     .entry-card input[type="checkbox"] {
@@ -657,12 +681,12 @@
     /* Project URL row */
     .url-row input { margin-bottom: 8px; }
 
-    /* ── INLINE ACTIONS (remove btn row) ── */
+    /* ── INLINE ACTIONS (inside card header) ── */
     .inline-actions {
       display: flex;
-      justify-content: flex-end;
+      align-items: center;
       gap: 8px;
-      margin-bottom: 6px;
+      flex-shrink: 0;
     }
 
     .entry-visibility-btn {

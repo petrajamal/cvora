@@ -496,59 +496,74 @@
 
     /* ── CV panel ── */
     .cv-panel {
-      padding: 24px 28px;
+      padding: 22px 26px;
       background: #fff;
       overflow: hidden;
     }
 
-    /* Mirror LaTeX output exactly */
+    /* Mirror LaTeX Computer Modern output */
     .cv-doc {
-      font-family: "Inter", sans-serif;
-      font-size: 10px;
-      color: #1a1a1a;
-      line-height: 1.45;
+      font-family: "Georgia", "Times New Roman", serif;
+      font-size: 9.8px;
+      color: #111;
+      line-height: 1.42;
     }
 
     .cv-header {
       text-align: center;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .cv-name {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 700;
-      letter-spacing: -0.01em;
+      letter-spacing: 0.02em;
       color: #111;
-      margin-bottom: 3px;
+      margin-bottom: 5px;
+      font-family: "Georgia", serif;
     }
 
     .cv-contact {
-      font-size: 10px;
-      color: #444;
+      font-size: 9px;
+      color: #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
-    .cv-contact a {
-      color: #444;
+    .cv-contact-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      color: #333;
       text-decoration: none;
     }
 
+    .cv-contact-item svg {
+      flex-shrink: 0;
+      color: #555;
+    }
+
     .cv-section {
-      margin-top: 9px;
+      margin-top: 8px;
     }
 
     .cv-section-heading {
-      font-size: 11.5px;
+      font-size: 11px;
       font-weight: 700;
       font-variant: small-caps;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.03em;
       color: #111;
       padding-bottom: 2px;
-      border-bottom: 0.6px solid #333;
-      margin-bottom: 6px;
+      border-bottom: 0.5px solid #222;
+      margin-bottom: 5px;
+      font-family: "Georgia", serif;
     }
 
     .cv-entry {
-      margin-bottom: 6px;
+      margin-bottom: 5px;
     }
 
     .cv-entry-header {
@@ -559,42 +574,52 @@
     }
 
     .cv-entry-title {
-      font-size: 10.5px;
+      font-size: 9.8px;
       font-weight: 700;
       color: #111;
     }
 
     .cv-entry-date {
-      font-size: 9.5px;
-      color: #555;
+      font-size: 9px;
+      font-style: italic;
+      color: #444;
       white-space: nowrap;
       flex-shrink: 0;
     }
 
     .cv-entry-sub {
-      font-size: 9.5px;
+      font-size: 9px;
       font-style: italic;
-      color: #555;
+      color: #444;
       margin-bottom: 3px;
     }
 
     .cv-bullets {
-      padding-left: 12px;
+      padding-left: 14px;
       margin: 0;
-      list-style: disc;
+      list-style: none;
     }
 
     .cv-bullets li {
-      font-size: 9.5px;
-      color: #222;
+      font-size: 9.2px;
+      color: #111;
       line-height: 1.5;
       margin-bottom: 1px;
+      position: relative;
+    }
+
+    .cv-bullets li::before {
+      content: "◦";
+      position: absolute;
+      left: -11px;
+      font-size: 9px;
+      color: #333;
     }
 
     .cv-skills-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 9.5px;
+      font-size: 9.2px;
     }
 
     .cv-skills-table td {
@@ -604,13 +629,13 @@
 
     .cv-skills-table td:first-child {
       font-weight: 700;
-      width: 58px;
-      padding-right: 8px;
+      width: 60px;
+      padding-right: 6px;
       color: #111;
     }
 
     .cv-skills-table td:last-child {
-      color: #333;
+      color: #222;
     }
 
     /* ── Mobile ── */
@@ -768,7 +793,26 @@ Reduced time-to-market by 30% through streamlined sprint planning</div>
             <div class="cv-header">
               <div class="cv-name">Sarah Chen</div>
               <div class="cv-contact">
-                London, UK &nbsp;·&nbsp; sarah.chen@gmail.com &nbsp;·&nbsp; +44 7700 900142 &nbsp;·&nbsp; linkedin.com/in/sarahchen
+                <span class="cv-contact-item">
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                  London, UK
+                </span>
+                <span class="cv-contact-item">
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                  sarah.chen@gmail.com
+                </span>
+                <span class="cv-contact-item">
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.07 1.12h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16l.92.92z"/></svg>
+                  +44 7700 900142
+                </span>
+                <span class="cv-contact-item">
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg>
+                  linkedin/sarahchen
+                </span>
+                <span class="cv-contact-item">
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/></svg>
+                  github/sarahchen
+                </span>
               </div>
             </div>
 

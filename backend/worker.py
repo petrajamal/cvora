@@ -424,22 +424,28 @@ def fetch_jobs_from_adzuna(ai_data, preferences):
         return []
 
 
-# ── Adzuna response cache (in-memory, 1-hour TTL) ────────────────────────────
+# ── Job API caches (in-memory, keyed by actual API params) ───────────────────
 _adzuna_cache: dict = {}
-_CACHE_TTL = 3600  # seconds
+_jsearch_cache: dict = {}
+_JOB_CACHE_TTL = 7200  # 2 hours — jobs don't change that fast
 
 def fetch_jobs_cached(ai_data: dict, preferences: dict) -> list:
-    key_data = {
-        "skills": sorted(ai_data.get("skills", [])),
-        "location": ai_data.get("location", ""),
-        "prefs": json.dumps(preferences, sort_keys=True),
-    }
-    cache_key = hashlib.md5(json.dumps(key_data, sort_keys=True).encode()).hexdigest()
+    # Key by the actual Adzuna query params, not the full profile.
+    # build_search_query only uses job title/target fields — skills are irrelevant.
+    what    = build_search_query(ai_data)
+    modes   = set(preferences.get("modes", []))
+    loc     = ai_data.get("location") or ""
+    reloc   = (preferences.get("relocation_locations") or [])
+    country = detect_country(reloc[0] if ("willing_to_relocate" in modes and reloc) else loc)
+    remote  = "remote" in modes
+    cache_key = hashlib.md5(
+        json.dumps({"what": what, "country": country, "remote": remote}, sort_keys=True).encode()
+    ).hexdigest()
     now = time.monotonic()
     if cache_key in _adzuna_cache:
         result, ts = _adzuna_cache[cache_key]
-        if now - ts < _CACHE_TTL:
-            print(f"[JOBS] Adzuna cache hit ({int(now - ts)}s old)")
+        if now - ts < _JOB_CACHE_TTL:
+            print(f"[JOBS] Adzuna cache hit for '{what}' ({int(now - ts)}s old)")
             return result
     result = fetch_jobs_from_adzuna(ai_data, preferences)
     _adzuna_cache[cache_key] = (result, now)
@@ -691,7 +697,18 @@ def map_jsearch_job(raw):
 def _jsearch_request(query, country_code, remote_only=False):
     """
     Make one jsearch API call. Returns list of raw job dicts (may be empty).
+    Results are cached in-memory for 2 hours keyed by (query, country, remote).
     """
+    cache_key = hashlib.md5(
+        json.dumps({"q": query, "c": country_code, "r": remote_only}, sort_keys=True).encode()
+    ).hexdigest()
+    now = time.monotonic()
+    if cache_key in _jsearch_cache:
+        result, ts = _jsearch_cache[cache_key]
+        if now - ts < _JOB_CACHE_TTL:
+            print(f"[JOBS] JSearch cache hit for '{query}' country={country_code or 'any'} ({int(now - ts)}s old)")
+            return result
+
     headers = {
         "X-RapidAPI-Key":  JSEARCH_API_KEY,
         "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
@@ -715,7 +732,9 @@ def _jsearch_request(query, country_code, remote_only=False):
         timeout=15,
     )
     resp.raise_for_status()
-    return resp.json().get("data") or []
+    result = resp.json().get("data") or []
+    _jsearch_cache[cache_key] = (result, now)
+    return result
 
 
 def fetch_jobs_from_jsearch(ai_data, preferences):
@@ -894,7 +913,7 @@ def ai_extract_cv_data(text):
     """
 
     response = client.responses.create(
-        model="gpt-5.4",
+        model="gpt-5.2",
         input=prompt
     )
 

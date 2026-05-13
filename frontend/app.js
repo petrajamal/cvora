@@ -296,6 +296,12 @@ document.getElementById("resendVerifyBtn")?.addEventListener("click", async () =
     }
   }
   if (getToken()) {
+    const pricingRedirect = new URLSearchParams(window.location.search).get("pricing");
+    if (pricingRedirect === "1") {
+      window.history.replaceState({}, "", window.location.pathname);
+      window.location.href = "/pricing.html";
+      return;
+    }
     showApp();
   } else {
     showAuthScreen();
@@ -1265,6 +1271,8 @@ if (uploadForm) {
       const uploadData = await uploadRes.json();
 
       if (!uploadRes.ok) {
+        statusCard.classList.add("hidden");
+        if (handleApiLimitError(uploadRes.status, uploadData.detail)) return;
         const detail = uploadData.detail;
         setStatusFailed(typeof detail === "string" ? detail : "Upload failed.");
         return;
@@ -1533,6 +1541,8 @@ document.getElementById("findJobsBtn")?.addEventListener("click", async () => {
     const data = await res.json();
 
     if (!res.ok) {
+      statusCard.classList.add("hidden");
+      if (handleApiLimitError(res.status, data.detail)) return;
       const detail = data.detail;
       let msg = "Submission failed.";
       if (Array.isArray(detail) && detail.length) {
@@ -1540,7 +1550,6 @@ document.getElementById("findJobsBtn")?.addEventListener("click", async () => {
       } else if (typeof detail === "string") {
         msg = detail;
       }
-      statusCard.classList.add("hidden");
       showFormError(msg, "builderForm");
       return;
     }
@@ -1854,7 +1863,11 @@ window.approveCv = async function (jobId) {
       method:  "POST",
       headers: authHeaders(),
     });
-    if (!res.ok) throw new Error("Approval failed");
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (handleApiLimitError(res.status, data.detail)) return;
+      throw new Error("Approval failed");
+    }
     setStatusLoading("CV approved — finding matching jobs…");
     matchedJobs.innerHTML = `
       <div style="padding:14px 18px;background:var(--bg);border-radius:10px;border:1px solid var(--border);font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;">
@@ -2058,6 +2071,14 @@ async function loadProfileData() {
   if (cvsList)     cvsList.innerHTML     = "<p class='profile-empty'>Loading…</p>";
   if (matchesList) matchesList.innerHTML = "<p class='profile-empty'>Loading…</p>";
   if (likedList)   likedList.innerHTML   = "<p class='profile-empty'>Loading…</p>";
+
+  try {
+    const profileRes = await apiFetch(`${BACKEND_URL}/profile`, { headers: authHeaders() });
+    if (profileRes.ok) {
+      const profileData = await profileRes.json();
+      renderSubscriptionCard(profileData);
+    }
+  } catch (_) {}
 
   // CVs + matches
   try {
@@ -2861,3 +2882,162 @@ window.deleteAccount = async function() {
     showToast("Failed to delete account. Please try again.");
   }
 };
+
+function renderSubscriptionCard(profile) {
+  const card    = document.getElementById("subscriptionCard");
+  const pill    = document.getElementById("planPill");
+  const bars    = document.getElementById("usageBars");
+  const actions = document.getElementById("subActions");
+  const note    = document.getElementById("contactUploadsNote");
+  if (!card) return;
+
+  const tier   = profile.subscription_tier   || "free";
+  const status = profile.subscription_status || "inactive";
+  const isPro  = tier === "pro" && status === "active";
+  const isCanceling = status === "canceling";
+
+  card.className = "subscription-card" + (isPro ? " pro-active" : "");
+
+  pill.textContent = isPro ? "Pro" : isCanceling ? "Pro (canceling)" : "Free";
+  pill.className   = "plan-pill " + (isPro ? "pro" : isCanceling ? "canceling" : "free");
+
+  const uploads  = profile.uploads_this_month        || 0;
+  const builds   = profile.cv_builds_this_month      || 0;
+  const searches = profile.job_searches_this_month   || 0;
+
+  const uploadMax  = isPro ? 50  : 2;
+  const buildMax   = isPro ? null : 3;
+  const searchMax  = isPro ? null : 5;
+
+  function barRow(label, used, max) {
+    if (max === null) {
+      return `<div class="usage-row">
+        <span class="usage-label">${label}</span>
+        <span class="usage-count" style="color:var(--text-secondary);">Unlimited</span>
+      </div>`;
+    }
+    const pct     = Math.min(100, Math.round((used / max) * 100));
+    const danger  = pct >= 100 ? " danger" : "";
+    return `<div class="usage-row">
+      <span class="usage-label">${label}</span>
+      <div class="usage-bar-wrap"><div class="usage-bar-fill${danger}" style="width:${pct}%"></div></div>
+      <span class="usage-count">${used}/${max}</span>
+    </div>`;
+  }
+
+  bars.innerHTML =
+    barRow("CV uploads", uploads, uploadMax) +
+    barRow("CV builds",  builds,  buildMax) +
+    barRow("Job searches", searches, searchMax);
+
+  if (isPro) {
+    actions.innerHTML = `<button class="btn-cancel-sub" onclick="cancelSubscription()">Cancel subscription</button>`;
+    note.style.display = "";
+  } else if (isCanceling) {
+    actions.innerHTML = `<span style="font-size:13px;color:var(--text-muted);">Your Pro plan is active until the end of the billing period.</span>`;
+    note.style.display = "none";
+  } else {
+    actions.innerHTML = `<a class="btn-upgrade-inline" href="/pricing.html">Upgrade to Pro</a>`;
+    note.style.display = "none";
+  }
+}
+
+window.cancelSubscription = async function() {
+  const confirmed = await showConfirmModal(
+    "Cancel subscription",
+    "Your Pro plan will remain active until the end of the current billing period, then revert to Free. Continue?"
+  );
+  if (!confirmed) return;
+  try {
+    const res = await apiFetch(`${BACKEND_URL}/cancel-subscription`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error();
+    showToast("Subscription cancelled. You will keep Pro until the end of the billing period.", "info", 6000);
+    loadProfileData();
+  } catch (_) {
+    showToast("Failed to cancel subscription. Please try again.");
+  }
+};
+
+function showUpgradeBanner(message) {
+  const existing = document.getElementById("upgradeBanner");
+  if (existing) existing.remove();
+  const el = document.createElement("div");
+  el.id = "upgradeBanner";
+  el.style.cssText = `
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:#1E293B;color:#fff;padding:14px 20px;border-radius:12px;
+    font-size:14px;font-weight:500;z-index:9999;
+    box-shadow:0 8px 24px rgba(0,0,0,0.22);display:flex;align-items:center;
+    gap:14px;max-width:90vw;
+  `;
+  el.innerHTML = `
+    <span>${message}</span>
+    <a href="/pricing.html" style="background:#4F46E5;color:#fff;padding:7px 14px;border-radius:7px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">Upgrade</a>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#94A3B8;font-size:18px;cursor:pointer;padding:0;line-height:1;">&times;</button>
+  `;
+  document.body.appendChild(el);
+  setTimeout(() => {
+    if (el.parentElement) {
+      el.style.transition = "opacity 0.3s";
+      el.style.opacity = "0";
+      setTimeout(() => el.remove(), 320);
+    }
+  }, 10000);
+}
+
+function showProLimitBanner(message) {
+  const existing = document.getElementById("upgradeBanner");
+  if (existing) existing.remove();
+  const el = document.createElement("div");
+  el.id = "upgradeBanner";
+  el.style.cssText = `
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:#1E293B;color:#fff;padding:14px 20px;border-radius:12px;
+    font-size:14px;font-weight:500;z-index:9999;
+    box-shadow:0 8px 24px rgba(0,0,0,0.22);display:flex;align-items:center;
+    gap:14px;max-width:90vw;
+  `;
+  el.innerHTML = `
+    <span>${message}</span>
+    <a href="mailto:cvora.contact@gmail.com" style="background:#4F46E5;color:#fff;padding:7px 14px;border-radius:7px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">Contact us</a>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#94A3B8;font-size:18px;cursor:pointer;padding:0;line-height:1;">&times;</button>
+  `;
+  document.body.appendChild(el);
+  setTimeout(() => {
+    if (el.parentElement) {
+      el.style.transition = "opacity 0.3s";
+      el.style.opacity = "0";
+      setTimeout(() => el.remove(), 320);
+    }
+  }, 12000);
+}
+
+function handleApiLimitError(status, detail) {
+  if (status === 402) {
+    showUpgradeBanner("You've reached your free plan limit. Upgrade to Pro to continue.");
+    return true;
+  }
+  if (status === 429) {
+    const d = typeof detail === "object" ? detail : {};
+    if (d.detail === "monthly_limit_reached") {
+      showProLimitBanner("You've used all 50 uploads this month. Contact us at cvora.contact@gmail.com for more.");
+      return true;
+    }
+  }
+  return false;
+}
+
+(function handleUpgradeSuccess() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("upgrade") === "success") {
+    params.delete("upgrade");
+    const newUrl = window.location.pathname + (params.toString() ? "?" + params.toString() : "");
+    window.history.replaceState({}, "", newUrl);
+    setTimeout(() => {
+      showToast("Welcome to Pro! Your subscription is now active.", "info", 5000);
+    }, 800);
+  }
+})();

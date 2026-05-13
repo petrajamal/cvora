@@ -1656,8 +1656,9 @@ def approve_cv(
             raise HTTPException(status_code=404, detail="Job not found")
         if job.user_id != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
-        if job.status not in ("cv_generated",):
-            raise HTTPException(status_code=400, detail=f"Job is not in cv_generated state (current: {job.status})")
+        _re_matchable = {"cv_generated", "done", "failed", "failed_no_text", "failed_no_cv"}
+        if job.status not in _re_matchable and not job.status.startswith("failed"):
+            raise HTTPException(status_code=400, detail=f"Cannot trigger matching from status '{job.status}'")
 
         user = db.query(User).filter(User.id == user_id).first()
         if user:

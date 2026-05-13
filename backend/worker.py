@@ -474,10 +474,8 @@ def get_title_synonyms(title: str) -> list:
     _TITLE_SYNONYM_CACHE[key] = synonyms
     return synonyms
 
-def fetch_jobs_cached(ai_data: dict, preferences: dict) -> list:
-    # Key by the actual Adzuna query params, not the full profile.
-    # build_search_query only uses job title/target fields — skills are irrelevant.
-    what    = build_search_query(ai_data)
+def _adzuna_query_cached(what: str, ai_data: dict, preferences: dict) -> list:
+    """Run one Adzuna call for `what`, with in-memory caching."""
     modes   = set(preferences.get("modes", []))
     loc     = ai_data.get("location") or ""
     reloc   = (preferences.get("relocation_locations") or [])
@@ -492,8 +490,31 @@ def fetch_jobs_cached(ai_data: dict, preferences: dict) -> list:
         if now - ts < _JOB_CACHE_TTL:
             print(f"[JOBS] Adzuna cache hit for '{what}' ({int(now - ts)}s old)")
             return result
-    result = fetch_jobs_from_adzuna(ai_data, preferences)
+    # Temporarily override the query in a shallow-copy so fetch_jobs_from_adzuna
+    # picks it up via build_search_query.
+    patched = dict(ai_data)
+    wx = patched.get("work_experience") or []
+    if wx:
+        wx = [dict(wx[-1], position=what)] + list(wx[:-1])
+        patched["work_experience"] = wx
+    else:
+        patched.setdefault("setup", {})["target_fields"] = [what]
+    result = fetch_jobs_from_adzuna(patched, preferences)
     _adzuna_cache[cache_key] = (result, now)
+    return result
+
+
+def fetch_jobs_cached(ai_data: dict, preferences: dict) -> list:
+    """Try Adzuna with the exact title, then with a GPT synonym if empty."""
+    what = build_search_query(ai_data)
+    result = _adzuna_query_cached(what, ai_data, preferences)
+    if result:
+        return result
+    # Cache is warm from JSearch — no extra API call needed
+    synonyms = get_title_synonyms(what)
+    if synonyms:
+        print(f"[JOBS] Adzuna: no results for '{what}', trying synonym '{synonyms[0]}'")
+        result = _adzuna_query_cached(synonyms[0], ai_data, preferences)
     return result
 
 

@@ -9,7 +9,7 @@ import time
 import hashlib
 import secrets
 import requests
-import stripe
+import hmac
 from collections import defaultdict
 from datetime import datetime
 
@@ -261,10 +261,17 @@ DEV_MODE = os.getenv("DEV_MODE", "true").lower() == "true"
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 FRONTEND_URL   = os.getenv("FRONTEND_URL", "https://cvora.pages.dev")
 
-stripe.api_key          = os.getenv("STRIPE_SECRET_KEY", "")
-STRIPE_WEBHOOK_SECRET   = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-STRIPE_PRICE_MONTHLY    = os.getenv("STRIPE_PRICE_MONTHLY", "")
-STRIPE_PRICE_YEARLY     = os.getenv("STRIPE_PRICE_YEARLY", "")
+LS_API_KEY          = os.getenv("LS_API_KEY", "")
+LS_WEBHOOK_SECRET   = os.getenv("LS_WEBHOOK_SECRET", "")
+LS_STORE_ID         = os.getenv("LS_STORE_ID", "")
+LS_VARIANT_MONTHLY  = os.getenv("LS_VARIANT_MONTHLY", "")
+LS_VARIANT_YEARLY   = os.getenv("LS_VARIANT_YEARLY", "")
+
+_LS_HEADERS = {
+    "Authorization": f"Bearer {LS_API_KEY}",
+    "Content-Type":  "application/vnd.api+json",
+    "Accept":        "application/vnd.api+json",
+}
 
 print(f"[STARTUP] RESEND={'set' if RESEND_API_KEY else 'MISSING'} FRONTEND_URL={FRONTEND_URL}", flush=True)
 
@@ -1667,9 +1674,9 @@ def approve_cv(
 
 @app.post("/create-checkout-session")
 async def create_checkout_session(payload: dict, user_id: str = Depends(get_current_user_id)):
-    interval = payload.get("interval", "month")
-    price_id = STRIPE_PRICE_YEARLY if interval == "year" else STRIPE_PRICE_MONTHLY
-    if not price_id or not stripe.api_key:
+    interval    = payload.get("interval", "month")
+    variant_id  = LS_VARIANT_YEARLY if interval == "year" else LS_VARIANT_MONTHLY
+    if not variant_id or not LS_API_KEY:
         raise HTTPException(status_code=503, detail="Payments not configured")
 
     db = SessionLocal()
@@ -1678,63 +1685,72 @@ async def create_checkout_session(payload: dict, user_id: str = Depends(get_curr
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        customer_id = user.stripe_customer_id
-        if not customer_id:
-            customer = stripe.Customer.create(email=user.email, metadata={"user_id": user_id})
-            customer_id = customer.id
-            user.stripe_customer_id = customer_id
-            db.commit()
-
-        session = stripe.checkout.Session.create(
-            customer=customer_id,
-            payment_method_types=["card"],
-            line_items=[{"price": price_id, "quantity": 1}],
-            mode="subscription",
-            success_url=f"{FRONTEND_URL}/app.html?upgrade=success",
-            cancel_url=f"{FRONTEND_URL}/pricing.html",
-            metadata={"user_id": user_id},
+        body = {
+            "data": {
+                "type": "checkouts",
+                "attributes": {
+                    "checkout_data": {
+                        "email": user.email,
+                        "custom": {"user_id": user_id},
+                    },
+                    "product_options": {
+                        "redirect_url": f"{FRONTEND_URL}/app.html?upgrade=success",
+                    },
+                    "checkout_options": {"button_color": "#4F46E5"},
+                },
+                "relationships": {
+                    "store":   {"data": {"type": "stores",   "id": LS_STORE_ID}},
+                    "variant": {"data": {"type": "variants", "id": variant_id}},
+                },
+            }
+        }
+        resp = requests.post(
+            "https://api.lemonsqueezy.com/v1/checkouts",
+            json=body,
+            headers=_LS_HEADERS,
+            timeout=10,
         )
-        return {"url": session.url}
+        resp.raise_for_status()
+        url = resp.json()["data"]["attributes"]["url"]
+        return {"url": url}
     finally:
         db.close()
 
 
-@app.post("/stripe-webhook", include_in_schema=False)
-async def stripe_webhook(request: Request):
-    payload = await request.body()
-    sig = request.headers.get("stripe-signature", "")
-    try:
-        event = stripe.Webhook.construct_event(payload, sig, STRIPE_WEBHOOK_SECRET)
-    except Exception:
+@app.post("/ls-webhook", include_in_schema=False)
+async def ls_webhook(request: Request):
+    raw     = await request.body()
+    sig     = request.headers.get("X-Signature", "")
+    digest  = hmac.new(LS_WEBHOOK_SECRET.encode(), raw, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(digest, sig):
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
+
+    event   = json.loads(raw)
+    et      = event.get("meta", {}).get("event_name", "")
+    data    = event.get("data", {})
+    attrs   = data.get("attributes", {})
+    # user_id is passed as custom_data at checkout creation
+    user_id = event.get("meta", {}).get("custom_data", {}).get("user_id")
 
     db = SessionLocal()
     try:
-        def _get_user_by_customer(customer_id: str):
-            return db.query(User).filter(User.stripe_customer_id == customer_id).first()
+        user = db.query(User).filter(User.id == user_id).first() if user_id else None
 
-        et = event["type"]
-        obj = event["data"]["object"]
-
-        if et in ("customer.subscription.created", "customer.subscription.updated"):
-            user = _get_user_by_customer(obj["customer"])
+        if et in ("subscription_created", "subscription_updated"):
             if user:
-                status = obj["status"]
-                user.stripe_subscription_id = obj["id"]
-                user.subscription_tier  = "pro" if status == "active" else "free"
+                status = attrs.get("status", "")
+                user.stripe_subscription_id = str(data.get("id", ""))
+                user.subscription_tier   = "pro" if status == "active" else "free"
                 user.subscription_status = status
                 db.commit()
 
-        elif et == "customer.subscription.deleted":
-            user = _get_user_by_customer(obj["customer"])
+        elif et == "subscription_cancelled":
             if user:
                 user.subscription_tier   = "free"
                 user.subscription_status = "canceled"
                 db.commit()
 
-        elif et == "invoice.payment_failed":
-            customer_id = obj.get("customer")
-            user = _get_user_by_customer(customer_id) if customer_id else None
+        elif et == "subscription_payment_failed":
             if user:
                 user.subscription_status = "past_due"
                 db.commit()
@@ -1752,7 +1768,15 @@ async def cancel_subscription(user_id: str = Depends(get_current_user_id)):
         user = db.query(User).filter(User.id == user_id).first()
         if not user or not user.stripe_subscription_id:
             raise HTTPException(status_code=404, detail="No active subscription found")
-        stripe.Subscription.modify(user.stripe_subscription_id, cancel_at_period_end=True)
+
+        sub_id = user.stripe_subscription_id
+        resp = requests.patch(
+            f"https://api.lemonsqueezy.com/v1/subscriptions/{sub_id}",
+            json={"data": {"type": "subscriptions", "id": sub_id, "attributes": {"cancelled": True}}},
+            headers=_LS_HEADERS,
+            timeout=10,
+        )
+        resp.raise_for_status()
         user.subscription_status = "canceling"
         db.commit()
         return {"status": "canceling"}

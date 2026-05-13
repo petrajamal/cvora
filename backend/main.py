@@ -1029,6 +1029,10 @@ async def save_cv_only(payload: dict, user_id: str = Depends(get_current_user_id
                 r2.upload_bytes(pdf_path, pdf_bytes, content_type="application/pdf")
                 job.generated_pdf_path = pdf_path
             job.generated_latex = latex_source
+            new_profile_json = json.dumps(candidate_profile, sort_keys=True)
+            old_profile_json = json.dumps(json.loads(job.candidate_profile), sort_keys=True) if job.candidate_profile else None
+            if new_profile_json != old_profile_json:
+                job.ai_structured_data = None  # profile changed — force re-derivation
             job.candidate_profile = json.dumps(candidate_profile)
             db.commit()
             return {"job_id": job_id_to_update, "has_pdf": bool(pdf_bytes)}
@@ -1818,6 +1822,10 @@ async def preview_cv(
                     r2.upload_bytes(pdf_path, pdf_bytes, content_type="application/pdf")
                     job.generated_pdf_path = pdf_path
                 job.generated_latex    = latex_source
+                new_profile_json = json.dumps(candidate_profile, sort_keys=True)
+                old_profile_json = json.dumps(json.loads(job.candidate_profile), sort_keys=True) if job.candidate_profile else None
+                if new_profile_json != old_profile_json:
+                    job.ai_structured_data = None  # profile changed — force re-derivation
                 job.candidate_profile  = json.dumps(candidate_profile)
                 db.commit()
         except Exception:

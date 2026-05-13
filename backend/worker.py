@@ -1577,7 +1577,14 @@ while True:
             if original_status == "pending_matching":
                 print("[WORKER] CV approved — running matching for builder job...")
 
-                ai_data = json.loads(job.ai_structured_data) if job.ai_structured_data else {}
+                if job.ai_structured_data:
+                    ai_data = json.loads(job.ai_structured_data)
+                elif job.candidate_profile:
+                    # ai_structured_data was cleared because the profile changed after last build
+                    print("[WORKER] ai_structured_data missing — deriving from updated candidate_profile")
+                    ai_data = json.loads(job.candidate_profile)
+                else:
+                    ai_data = {}
 
                 # Derive location preferences from the stored user_preferences if present,
                 # otherwise fall back to cv_location mode using the candidate's location.

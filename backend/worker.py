@@ -394,10 +394,10 @@ def fetch_jobs_from_adzuna(ai_data, preferences):
         country = detect_country(candidate_location)
         where   = "" if _is_unsupported(candidate_location) else candidate_location
 
-    # Append "remote" to the query when remote mode is selected
+    # Drop location filter for remote but don't add "remote" to the what query —
+    # it causes Adzuna to return 0 results (too few jobs have "remote" in title)
     if "remote" in modes:
-        what  = what + " remote"
-        where = ""          # no location filter for remote
+        where = ""
 
     params = {
         "app_id":           ADZUNA_APP_ID,

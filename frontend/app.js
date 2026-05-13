@@ -1728,8 +1728,7 @@ function setStatusLoading(msg) {
 }
 
 function setStatusDone(msg) {
-  statusCard.classList.remove("status-processing", "status-failed");
-  statusCard.classList.add("status-done");
+  statusCard.classList.add("hidden");
   statusText.textContent = msg;
   const badge = document.getElementById("resultsBadge");
   if (badge) {

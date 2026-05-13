@@ -1007,7 +1007,7 @@ def ai_extract_cv_data(text):
     """
 
     response = client.responses.create(
-        model="gpt-5.2",
+        model="gpt-5.4",
         input=prompt
     )
 

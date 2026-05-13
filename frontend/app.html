@@ -1303,6 +1303,12 @@
     /* ════════════════════════════════════════════
        STATUS CARD
     ════════════════════════════════════════════ */
+    #statusCard {
+      border: none;
+      padding: 0;
+      background: none;
+      box-shadow: none;
+    }
     #statusCard h2 {
       font-size: 11px;
       font-weight: 700;
@@ -1311,12 +1317,35 @@
       color: var(--text-muted);
       margin-bottom: 8px;
     }
-
     #statusText {
       font-size: 14px;
       color: var(--text-secondary);
       margin: 0;
     }
+    .status-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+    }
+    #statusCard.status-processing .status-inner {
+      border-color: #818CF8;
+      background: #F5F3FF;
+    }
+    #statusCard.status-done .status-inner {
+      border-color: #6EE7B7;
+      background: #F0FDF4;
+    }
+    #statusCard.status-done #statusText { color: #065F46; }
+    #statusCard.status-failed .status-inner {
+      border-color: #FCA5A5;
+      background: #FEF2F2;
+    }
+    #statusCard.status-failed #statusText { color: #991B1B; }
 
     /* ════════════════════════════════════════════
        RESULTS CARD
@@ -1569,8 +1598,14 @@
       color: #94A3B8;
       margin: 0;
     }
-    .profile-back-btn {
+    .profile-actions {
       margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .profile-back-btn {
       background: rgba(255,255,255,0.1) !important;
       border: 1px solid rgba(255,255,255,0.2) !important;
       color: white !important;
@@ -2112,10 +2147,11 @@
           <div class="profile-avatar" id="profileAvatar">?</div>
           <div class="profile-meta">
             <h2 id="profileName">—</h2>
-            <p id="profileEmail">—</p>
           </div>
-          <button class="profile-back-btn" onclick="showMainView()">&#8592; Back</button>
-          <button id="deleteAccountBtn" onclick="deleteAccount()" style="background:none;border:1.5px solid var(--danger);color:var(--danger);font-size:12px;font-weight:600;padding:6px 14px;border-radius:6px;cursor:pointer;margin-left:auto;">Delete Account</button>
+          <div class="profile-actions">
+            <button class="profile-back-btn" onclick="showMainView()">&#8592; Back</button>
+            <button id="deleteAccountBtn" onclick="deleteAccount()" style="background:none;border:1.5px solid var(--danger);color:var(--danger);font-size:12px;font-weight:600;padding:6px 14px;border-radius:6px;cursor:pointer;">Delete Account</button>
+          </div>
         </div>
 
         <div id="subscriptionCard" class="subscription-card">
@@ -2600,12 +2636,11 @@
 
       </div><!-- /builderPreviewLayout -->
 
-      <div id="statusCard" class="card hidden">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <h2 style="margin:0;">Status</h2>
-          <button id="stopAnalysisBtn" class="btn-danger-sm" style="display:none;" onclick="stopAnalysis()">Stop</button>
+      <div id="statusCard" class="hidden">
+        <div class="status-inner">
+          <p id="statusText">Waiting...</p>
+          <button id="stopAnalysisBtn" class="btn-danger-sm" style="display:none;flex-shrink:0;" onclick="stopAnalysis()">Stop</button>
         </div>
-        <p id="statusText">Waiting...</p>
       </div>
 
       <div id="resultsCard" class="card hidden">

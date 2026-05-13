@@ -1734,7 +1734,7 @@ function setStatusDone(msg) {
   const badge = document.getElementById("resultsBadge");
   if (badge) {
     badge.textContent = msg;
-    badge.style.display = "";
+    badge.style.display = "inline";
   }
 }
 

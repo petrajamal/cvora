@@ -1718,23 +1718,26 @@ while True:
                     return _ai_refine_cache[cache_key]
 
                 prompt = f"""
-You are a strict CV copy-editor. Your ONLY job is light copy-editing.
+You are a strict CV copy-editor. Your ONLY job is minimal copy-editing.
 
-ALLOWED:
-- Fix spelling and grammar mistakes
-- Improve punctuation and capitalisation
-- Reword awkward phrasing while preserving the exact same meaning
-- Make bullet points consistently concise and parallel in style
+ALLOWED — the ONLY changes you may make:
+- Fix clear spelling mistakes
+- Fix punctuation errors (missing period at end of bullet, unclosed quote, etc.)
+- Fix obvious grammar errors (wrong tense, subject-verb disagreement)
+- Normalise whitespace (double spaces, leading/trailing spaces)
 
 FORBIDDEN — do NOT do any of the following:
-- Invent, add, or imply any responsibility, achievement, skill, technology, or project detail not already present in the input
-- Replace vague or nonsensical text with plausible-sounding professional language
-- Expand short notes into full sentences if the original was just a fragment
-- Remove information that was present in the input
+- Reword, rephrase, or "improve" any phrasing — if it reads fine, leave it exactly as written
+- Change word choices even if a better word exists
+- Reorder words or restructure sentences
+- Make bullets "parallel in style" by changing any of them
+- Invent, add, expand, or imply any detail not present in the input
+- Replace vague or short text with more elaborate professional language
+- Remove any information
 
 HANDLING UNCLEAR OR NONSENSICAL TEXT:
-- If a description bullet is unclear, keep it as-is with only minimal grammar fixes
-- If a bullet is pure gibberish (random characters, no meaning), output it unchanged — do NOT rewrite it as a professional bullet
+- If a bullet is unclear or just a short note, output it unchanged
+- If a bullet is pure gibberish, output it unchanged
 
 Return ONLY valid JSON using the EXACT same structure and keys as the input. No markdown, no explanation.
 

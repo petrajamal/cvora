@@ -533,26 +533,40 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None, co
             skills_section = ""
 
     # ── Header lines: order is location · email · phone, then links A-Z ──────
+    _LINK_ICONS = {
+        "linkedin":  "\\faLinkedin",
+        "github":    "\\faGithub",
+        "portfolio": "\\faGlobe",
+        "website":   "\\faGlobe",
+        "twitter":   "\\faTwitter",
+        "behance":   "\\faBehance",
+        "dribbble":  "\\faDribbble",
+        "leetcode":  "\\faCode",
+    }
+
     contact_items = []
     if profile.get("location"):
-        contact_items.append(latex_escape(profile["location"]))
+        contact_items.append(f"\\faMapMarkerAlt~{latex_escape(profile['location'])}")
     if profile.get("email"):
         contact_items.append(
-            f"\\href{{mailto:{latex_escape(profile['email'])}}}"
+            f"\\faEnvelope~\\href{{mailto:{latex_escape(profile['email'])}}}"
             f"{{{latex_escape(profile['email'])}}}"
         )
     if profile.get("phone"):
-        contact_items.append(latex_escape(profile["phone"]))
+        contact_items.append(f"\\faPhone~{latex_escape(profile['phone'])}")
 
     # Build link items, sort alphabetically by display text
     _raw_links = []
     for link in links:
         url_raw     = (link.get("url") or "").strip()
         display_raw = (link.get("display") or link.get("url") or "").strip()
+        link_type   = (link.get("type") or "other").lower()
         if url_raw:
-            label = latex_escape(display_raw or url_raw)
+            label      = latex_escape(display_raw or url_raw)
             escaped_url = latex_escape(url_raw)
-            _raw_links.append((display_raw.lower(), f"\\href{{{escaped_url}}}{{{label}}}"))
+            icon       = _LINK_ICONS.get(link_type, "")
+            icon_prefix = f"{icon}~" if icon else ""
+            _raw_links.append((display_raw.lower(), f"{icon_prefix}\\href{{{escaped_url}}}{{{label}}}"))
     _raw_links.sort(key=lambda x: x[0])
     formatted_links_header = [item for _, item in _raw_links]
 
@@ -627,6 +641,7 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None, co
 \\usepackage[top={top_margin},bottom={top_margin},left={side_margin},right={side_margin}]{{geometry}}
 \\usepackage[hidelinks,colorlinks=false]{{hyperref}}
 \\usepackage{{xcolor}}
+\\usepackage{{fontawesome5}}
 
 % ── Section headings: bold small-caps + full-width rule (no titlesec needed)
 \\makeatletter

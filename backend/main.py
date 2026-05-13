@@ -1009,10 +1009,9 @@ async def save_cv_only(payload: dict, user_id: str = Depends(get_current_user_id
         raise HTTPException(status_code=400, detail="Missing candidate_profile")
 
     cleaned_profile  = clean_profile_input(candidate_profile)
-    enhanced_profile = await auto_enhance_cv_descriptions(cleaned_profile)
 
     try:
-        latex_source, pdf_bytes, _ = await build_one_page_cv(enhanced_profile)
+        latex_source, pdf_bytes, _ = await build_one_page_cv(cleaned_profile)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
     except Exception as exc:
@@ -1077,8 +1076,7 @@ async def download_cv_latex(job_id: str, user_id: str = Depends(get_current_user
             try:
                 raw_profile = json.loads(job.candidate_profile)
                 cleaned = clean_profile_input(raw_profile)
-                enhanced = await auto_enhance_cv_descriptions(cleaned)
-                latex_source, _, _ = await build_one_page_cv(enhanced)
+                latex_source, _, _ = await build_one_page_cv(cleaned)
             except Exception:
                 latex_source = ""
         if not latex_source:
@@ -1794,11 +1792,10 @@ async def preview_cv(
         raise HTTPException(status_code=400, detail="Missing candidate_profile")
 
     cleaned_profile  = clean_profile_input(candidate_profile)
-    enhanced_profile = await auto_enhance_cv_descriptions(cleaned_profile)
 
     try:
         latex_source, pdf_bytes, compression_warning = await build_one_page_cv(
-            enhanced_profile, allow_two_pages=allow_two_pages
+            cleaned_profile, allow_two_pages=allow_two_pages
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc))

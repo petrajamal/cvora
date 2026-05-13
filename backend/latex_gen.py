@@ -369,7 +369,8 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None, co
             exp.get("description") or exp.get("description_points") or exp.get("tasks_summary")
         )
 
-        subtitle_parts = [p for p in [org, loc] if p]
+        loc_str = f"\\faMapMarkerAlt~{loc}" if loc else ""
+        subtitle_parts = [p for p in [org, loc_str] if p]
         subtitle = " $\\cdot$ ".join(subtitle_parts)
 
         experience_blocks.append(

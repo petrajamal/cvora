@@ -1710,93 +1710,130 @@ function renderResults(data, jobId) {
        </div>`
     : "";
 
-  matchedJobs.innerHTML = bannerHtml + jobs.map((job) => {
-    const matchPct   = Math.round(((job.match_score ?? 0) / 500) * 100);
-    const scoreColor = matchPct >= 70 ? "#059669" : matchPct >= 40 ? "#D97706" : "#DC2626";
-    const scoreBg    = matchPct >= 70 ? "#ECFDF5" : matchPct >= 40 ? "#FFFBEB" : "#FEF2F2";
-    const sb = job.score_breakdown || {};
+  _allJobs   = jobs;
+  _jobsShown = 0;
+  matchedJobs.innerHTML = bannerHtml;
+  _renderNextJobBatch();
+}
 
-    const scoreItems = [
-      { label: "Skills",     value: sb.skills_score },
-      { label: "Role Fit",   value: sb.role_relevance_score },
-      { label: "Location",   value: sb.location_score },
-      { label: "Experience", value: sb.experience_score },
-      { label: "Stage Fit",  value: sb.grad_student_fit_score },
-    ];
+const _JOBS_PER_PAGE = 10;
+let _allJobs   = [];
+let _jobsShown = 0;
 
-    const breakdownHtml = scoreItems.map(({ label, value }) => {
-      const pct = value ?? 0;
-      const barColor = pct >= 70 ? "#059669" : pct >= 40 ? "#D97706" : "#DC2626";
-      return `
-        <div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748B;margin-bottom:3px;font-weight:600;">
-            <span>${label}</span>
-            <strong style="color:#0F172A;">${value !== undefined ? value + "%" : "—"}</strong>
-          </div>
-          <div style="height:5px;background:#E2E8F0;border-radius:999px;overflow:hidden;">
-            <div style="height:100%;width:${pct}%;background:${barColor};border-radius:999px;"></div>
-          </div>
-        </div>`;
-    }).join("");
+function jobCardHtml(job) {
+  const matchPct   = Math.round(((job.match_score ?? 0) / 500) * 100);
+  const scoreColor = matchPct >= 70 ? "#059669" : matchPct >= 40 ? "#D97706" : "#DC2626";
+  const scoreBg    = matchPct >= 70 ? "#ECFDF5" : matchPct >= 40 ? "#FFFBEB" : "#FEF2F2";
+  const sb = job.score_breakdown || {};
 
+  const scoreItems = [
+    { label: "Skills",     value: sb.skills_score },
+    { label: "Role Fit",   value: sb.role_relevance_score },
+    { label: "Location",   value: sb.location_score },
+    { label: "Experience", value: sb.experience_score },
+    { label: "Stage Fit",  value: sb.grad_student_fit_score },
+  ];
+
+  const breakdownHtml = scoreItems.map(({ label, value }) => {
+    const pct = value ?? 0;
+    const barColor = pct >= 70 ? "#059669" : pct >= 40 ? "#D97706" : "#DC2626";
     return `
-    <div class="job">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
-        <div style="flex:1;min-width:0;">
-          <h4 style="margin:0 0 5px;font-size:15px;font-weight:700;color:#0F172A;">${escapeHtml(job.title)}</h4>
-          <p style="margin:0;font-size:13px;color:#64748B;font-weight:500;">
-            ${escapeHtml(job.company)}<span style="margin:0 6px;color:#CBD5E1;">&bull;</span>${escapeHtml(job.location || "Location not specified")}
-          </p>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748B;margin-bottom:3px;font-weight:600;">
+          <span>${label}</span>
+          <strong style="color:#0F172A;">${value !== undefined ? value + "%" : "—"}</strong>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;min-width:60px;">
-          <div style="width:56px;height:56px;border-radius:50%;border:3px solid ${scoreColor};background:${scoreBg};display:flex;align-items:center;justify-content:center;">
-            <span style="font-size:13px;font-weight:700;color:${scoreColor};">${matchPct}%</span>
-          </div>
-          <span style="font-size:10px;color:#94A3B8;margin-top:4px;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;">Match</span>
+        <div style="height:5px;background:#E2E8F0;border-radius:999px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${barColor};border-radius:999px;"></div>
         </div>
-      </div>
-
-      <details style="margin-top:14px;">
-        <summary style="cursor:pointer;font-size:11px;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;list-style:none;user-select:none;">
-          Score Breakdown
-        </summary>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
-          ${breakdownHtml}
-        </div>
-      </details>
-
-      ${(job.matched_skills || []).length ? `
-        <div style="margin-top:14px;">
-          <span style="font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Matched Skills</span>
-          ${job.matched_skills.map(s => `<span class="badge">${escapeHtml(s)}</span>`).join("")}
-        </div>` : ""}
-
-      ${(job.missing_skills || []).length ? `
-        <div style="margin-top:10px;">
-          <span style="font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Skills to Develop</span>
-          ${job.missing_skills.slice(0, 6).map(s => `<span class="badge" style="background:#FEF2F2;color:#DC2626;border-color:#FECACA;">${escapeHtml(s)}</span>`).join("")}
-        </div>` : ""}
-
-      <div style="margin-top:14px;padding-top:12px;border-top:1px solid #E2E8F0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-        ${job.url ? `
-          <a href="${escapeHtml(job.url)}" target="_blank" rel="noopener noreferrer"
-             style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#4F46E5;text-decoration:none;">
-            View Job Listing &#8594;
-          </a>` : "<span></span>"}
-        <button type="button"
-          data-job-url="${escapeHtml(job.url || "")}"
-          data-job-title="${escapeHtml(job.title || "")}"
-          data-job-company="${escapeHtml(job.company || "")}"
-          data-job-location="${escapeHtml(job.location || "")}"
-          data-match-score="${matchPct}"
-          onclick="toggleLikeJob(this)"
-          style="background:none;border:1.5px solid #E2E8F0;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600;color:#64748B;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s;"
-          class="like-btn">
-          &#9825; Save Job
-        </button>
-      </div>
-    </div>`;
+      </div>`;
   }).join("");
+
+  return `
+  <div class="job">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+      <div style="flex:1;min-width:0;">
+        <h4 style="margin:0 0 5px;font-size:15px;font-weight:700;color:#0F172A;">${escapeHtml(job.title)}</h4>
+        <p style="margin:0;font-size:13px;color:#64748B;font-weight:500;">
+          ${escapeHtml(job.company)}<span style="margin:0 6px;color:#CBD5E1;">&bull;</span>${escapeHtml(job.location || "Location not specified")}
+        </p>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;min-width:60px;">
+        <div style="width:56px;height:56px;border-radius:50%;border:3px solid ${scoreColor};background:${scoreBg};display:flex;align-items:center;justify-content:center;">
+          <span style="font-size:13px;font-weight:700;color:${scoreColor};">${matchPct}%</span>
+        </div>
+        <span style="font-size:10px;color:#94A3B8;margin-top:4px;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;">Match</span>
+      </div>
+    </div>
+
+    <details style="margin-top:14px;">
+      <summary style="cursor:pointer;font-size:11px;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;list-style:none;user-select:none;">
+        Score Breakdown
+      </summary>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
+        ${breakdownHtml}
+      </div>
+    </details>
+
+    ${(job.matched_skills || []).length ? `
+      <div style="margin-top:14px;">
+        <span style="font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Matched Skills</span>
+        ${job.matched_skills.map(s => `<span class="badge">${escapeHtml(s)}</span>`).join("")}
+      </div>` : ""}
+
+    ${(job.missing_skills || []).length ? `
+      <div style="margin-top:10px;">
+        <span style="font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Skills to Develop</span>
+        ${job.missing_skills.slice(0, 6).map(s => `<span class="badge" style="background:#FEF2F2;color:#DC2626;border-color:#FECACA;">${escapeHtml(s)}</span>`).join("")}
+      </div>` : ""}
+
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid #E2E8F0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      ${job.url ? `
+        <a href="${escapeHtml(job.url)}" target="_blank" rel="noopener noreferrer"
+           style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#4F46E5;text-decoration:none;">
+          View Job Listing &#8594;
+        </a>` : "<span></span>"}
+      <button type="button"
+        data-job-url="${escapeHtml(job.url || "")}"
+        data-job-title="${escapeHtml(job.title || "")}"
+        data-job-company="${escapeHtml(job.company || "")}"
+        data-job-location="${escapeHtml(job.location || "")}"
+        data-match-score="${matchPct}"
+        onclick="toggleLikeJob(this)"
+        style="background:none;border:1.5px solid #E2E8F0;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600;color:#64748B;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s;"
+        class="like-btn">
+        &#9825; Save Job
+      </button>
+    </div>
+  </div>`;
+}
+
+function _renderNextJobBatch() {
+  const matchedJobs = document.getElementById("matchedJobs");
+  if (!matchedJobs) return;
+
+  const batch = _allJobs.slice(_jobsShown, _jobsShown + _JOBS_PER_PAGE);
+  _jobsShown += batch.length;
+
+  const existing = document.getElementById("loadMoreJobsBtn");
+  if (existing) existing.remove();
+
+  batch.forEach(job => {
+    matchedJobs.insertAdjacentHTML("beforeend", jobCardHtml(job));
+  });
+
+  if (_jobsShown < _allJobs.length) {
+    const remaining = _allJobs.length - _jobsShown;
+    const next = Math.min(_JOBS_PER_PAGE, remaining);
+    const btn = document.createElement("button");
+    btn.id = "loadMoreJobsBtn";
+    btn.textContent = `Load ${next} more job${next !== 1 ? "s" : ""} (${remaining} remaining)`;
+    btn.style.cssText = "display:block;width:100%;margin-top:16px;padding:12px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;color:var(--text-secondary);cursor:pointer;transition:all 0.15s;";
+    btn.onmouseover = () => { btn.style.borderColor = "var(--primary)"; btn.style.color = "var(--primary)"; };
+    btn.onmouseout  = () => { btn.style.borderColor = "var(--border)";  btn.style.color = "var(--text-secondary)"; };
+    btn.onclick = _renderNextJobBatch;
+    matchedJobs.appendChild(btn);
+  }
 }
 
 // Track liked URLs in memory so the heart stays filled within the session

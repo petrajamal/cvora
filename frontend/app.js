@@ -323,7 +323,7 @@ const builderForm = document.getElementById("builderForm");
     const dt = new DataTransfer();
     dt.items.add(file);
     fileInput.files = dt.files;
-    label.textContent = "📄 " + file.name;
+    label.textContent = file.name + " uploaded";
     label.style.display = "block";
   }
 

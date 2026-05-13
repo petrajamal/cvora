@@ -1731,6 +1731,11 @@ function setStatusDone(msg) {
   statusCard.classList.remove("status-processing", "status-failed");
   statusCard.classList.add("status-done");
   statusText.textContent = msg;
+  const badge = document.getElementById("resultsBadge");
+  if (badge) {
+    badge.textContent = msg;
+    badge.style.display = "";
+  }
 }
 
 function setStatusFailed(msg) {

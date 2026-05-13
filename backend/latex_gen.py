@@ -397,10 +397,9 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None, co
 
         link_str = ""
         if link_raw:
-            link_str = (
-                f"\n\\href{{{latex_escape(link_raw)}}}"
-                f"{{\\small \\texttt{{{latex_escape(link_raw)}}}}}\\\\"
-            )
+            link_display_raw = (proj.get("link_display") or "").strip()
+            link_label = latex_escape(link_display_raw) if link_display_raw else f"\\small \\texttt{{{latex_escape(link_raw)}}}"
+            link_str = f"\n\\href{{{latex_escape(link_raw)}}}{{{link_label}}}\\\\"
 
         project_blocks.append(
             entry_header(title, date_str, subtitle)
@@ -422,8 +421,16 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None, co
 
         subtitle = " $\\cdot$ ".join(p for p in [role, organization] if p)
 
+        url_raw  = (item.get("url") or "").strip()
+        url_str  = ""
+        if url_raw:
+            url_display_raw = (item.get("url_display") or "").strip()
+            url_label = latex_escape(url_display_raw) if url_display_raw else f"\\small \\texttt{{{latex_escape(url_raw)}}}"
+            url_str = f"\n\\href{{{latex_escape(url_raw)}}}{{{url_label}}}\\\\"
+
         extracurricular_blocks.append(
             entry_header(title, date, subtitle)
+            + url_str
             + (render_bullets(desc, max_bullets) + "\n\\vspace{3pt}\n"
                if desc else "\\par\n\\vspace{3pt}\n")
         )
@@ -500,19 +507,22 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None, co
 
     if not compact_skills:
         skills_rows = []
+        _tech_lbl = latex_escape((skill_groups.get("technical_label") or "Technical").rstrip(":"))
+        _tools_lbl = latex_escape((skill_groups.get("tools_label") or "Tools").rstrip(":"))
+        _soft_lbl  = latex_escape((skill_groups.get("soft_label") or "Soft Skills").rstrip(":"))
         if vis_technical:
             skills_rows.append(
-                f"\\textbf{{Technical:}} & "
+                f"\\textbf{{{_tech_lbl}:}} & "
                 f"{', '.join(latex_escape(s) for s in vis_technical)} \\\\"
             )
         if vis_tools:
             skills_rows.append(
-                f"\\textbf{{Tools:}} & "
+                f"\\textbf{{{_tools_lbl}:}} & "
                 f"{', '.join(latex_escape(s) for s in vis_tools)} \\\\"
             )
         if vis_soft:
             skills_rows.append(
-                f"\\textbf{{Soft Skills:}} & "
+                f"\\textbf{{{_soft_lbl}:}} & "
                 f"{', '.join(latex_escape(s) for s in vis_soft)} \\\\"
             )
         if not skills_rows and skills:

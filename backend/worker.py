@@ -863,18 +863,72 @@ def _dedup_jobs(jobs: list) -> list:
     return out
 
 
+def _get_recent_positions(ai_data, years=10) -> list:
+    """Return unique job titles from work_experience within the last `years` years."""
+    cutoff = datetime.now().year - years
+    positions = []
+    seen = set()
+    for exp in (ai_data.get("work_experience") or []):
+        title = (exp.get("position") or "").strip()
+        if not title or title.lower() in seen:
+            continue
+        if exp.get("is_current"):
+            positions.append(title); seen.add(title.lower()); continue
+        end = exp.get("end_date")
+        if end:
+            parsed = parse_month_year(end)
+            if parsed is None or parsed[0] >= cutoff:
+                positions.append(title); seen.add(title.lower())
+        else:
+            # No end date — assume recent
+            positions.append(title); seen.add(title.lower())
+    return positions
+
+
 def fetch_all_jobs(ai_data, preferences) -> list:
     """
-    Always run both JSearch and Adzuna, merge, and deduplicate.
-    JSearch stops on its first successful attempt (up to 3 tries).
-    Adzuna always runs and uses the synonym cache for its own fallback.
+    For every job title held in the last 10 years, fetch GPT synonyms, then
+    query both JSearch and Adzuna for each title + each synonym.
+    Every API call is individually cached (2 h TTL).
     """
-    jsearch_jobs = fetch_jobs_from_jsearch(ai_data, preferences)
-    adzuna_jobs  = fetch_jobs_cached(ai_data, preferences)
+    # 1. Collect titles to search
+    positions = _get_recent_positions(ai_data, years=10)
+    if not positions:
+        base_query, _ = build_jsearch_query(ai_data, preferences)
+        positions = [base_query] if base_query else []
 
-    combined = jsearch_jobs + [j for j in adzuna_jobs if j not in jsearch_jobs]
-    deduped  = _dedup_jobs(combined)
-    print(f"[JOBS] merged: {len(jsearch_jobs)} JSearch + {len(adzuna_jobs)} Adzuna → {len(deduped)} unique")
+    all_titles: list = []
+    seen_t: set = set()
+    for pos in positions:
+        if pos.lower() not in seen_t:
+            all_titles.append(pos); seen_t.add(pos.lower())
+        for syn in get_title_synonyms(pos):
+            if syn.lower() not in seen_t:
+                all_titles.append(syn); seen_t.add(syn.lower())
+
+    # 2. Derive shared location params once
+    _, country_code = build_jsearch_query(ai_data, preferences)
+    remote_only = "remote" in set(preferences.get("modes", []))
+
+    # 3. Query both APIs for every title (all calls are cached)
+    all_jobs: list = []
+    for title in all_titles:
+        if JSEARCH_API_KEY:
+            try:
+                raw = _jsearch_request(title, country_code, remote_only)
+                if raw:
+                    all_jobs.extend(
+                        map_jsearch_job(j) for j in raw if j.get("job_title")
+                    )
+            except Exception as exc:
+                print(f"[JOBS] JSearch failed for '{title}': {exc}")
+        all_jobs.extend(_adzuna_query_cached(title, ai_data, preferences))
+
+    deduped = _dedup_jobs(all_jobs)
+    print(
+        f"[JOBS] {len(positions)} position(s) → {len(all_titles)} queries "
+        f"(+synonyms) → {len(deduped)} unique jobs"
+    )
     return deduped
 
 

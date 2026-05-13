@@ -1630,12 +1630,18 @@ while True:
                     .order_by(Job.created_at.desc())
                     .first()
                 )
-                if cached_job and cached_job.ai_structured_data:
+                cached_data = json.loads(cached_job.ai_structured_data) if (cached_job and cached_job.ai_structured_data) else None
+                cache_valid = cached_data and (
+                    cached_data.get("full_name") or
+                    cached_data.get("email") or
+                    cached_data.get("work_experience")
+                )
+                if cache_valid:
                     print("[CV] Reusing cached extraction from previous analysis.")
                     job.extracted_text  = cached_job.extracted_text
                     job.structured_data = cached_job.structured_data
                     job.ai_structured_data = cached_job.ai_structured_data
-                    ai_data = json.loads(cached_job.ai_structured_data)
+                    ai_data = cached_data
                     job.status_message = "Using cached CV analysis..."
                     db.commit()
                 else:

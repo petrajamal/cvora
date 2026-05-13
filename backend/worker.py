@@ -1050,11 +1050,12 @@ def compute_location_score(candidate_location, preferences, job):
     candidate_parts = {part.strip() for part in candidate_location.split(",") if part.strip()}
     job_parts = {part.strip() for part in job_location.split(",") if part.strip()}
 
-    # remote mode: job must be remote
+    # remote mode: prefer explicitly tagged remote jobs, but don't reject
+    # untagged ones — JSearch already filters by remote at query time
     if "remote" in modes and len(modes) == 1:
-        if job_location_type == "remote" or job_location == "remote":
+        if job_location_type == "remote" or job_location == "remote" or "remote" in job_location:
             return 100, "remote_match"
-        return 0, "remote_not_matched"
+        return 70, "remote_assumed"  # came from a remote query, assume eligible
 
     # cv_location mode only
     if "cv_location" in modes and len(modes) == 1:
@@ -1080,7 +1081,7 @@ def compute_location_score(candidate_location, preferences, job):
         return 0, "relocation_not_matched"
 
     # Multiple modes — any match is 100
-    if "remote" in modes and (job_location_type == "remote" or job_location == "remote"):
+    if "remote" in modes and (job_location_type == "remote" or job_location == "remote" or "remote" in job_location):
         return 100, "remote_match"
     if "cv_location" in modes and candidate_location:
         if candidate_location == job_location or candidate_parts & job_parts:

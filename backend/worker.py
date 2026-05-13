@@ -803,28 +803,27 @@ def _jsearch_request(query, country_code, remote_only=False):
     return result
 
 
-def fetch_jobs_from_jsearch(ai_data, preferences):
+def fetch_jobs_from_jsearch(ai_data, preferences) -> list:
     """
-    Fetch live jobs from jsearch (Google for Jobs aggregator via RapidAPI).
-    Covers MENA, Europe, US, and global listings.
+    Fetch jobs from JSearch (Google for Jobs via RapidAPI).
 
-    Retry strategy:
-      1. Specific query + country code           (e.g. "Process Improvement Analyst", LB)
-      2. Broader query + same country            (e.g. "Analyst", LB)
-      3. Specific query, no country filter       (global)
-      4. Falls back to Adzuna, then empty list
+    Retry strategy (stops on first non-empty result):
+      1. Exact title + country  (e.g. "Process Improvement Analyst", LB)
+      2. GPT synonym + country  (e.g. "Business Analyst", LB)
+      3. Exact title, no country filter (global)
+
+    Returns empty list if JSEARCH_API_KEY is unset or all attempts fail.
+    Callers should always also run Adzuna via fetch_all_jobs().
     """
     if not JSEARCH_API_KEY:
-        print("[JOBS] JSEARCH_API_KEY not set — trying Adzuna")
-        return fetch_jobs_cached(ai_data, preferences)
+        print("[JOBS] JSEARCH_API_KEY not set — skipping JSearch")
+        return []
 
-    modes      = set(preferences.get("modes", []))
+    modes       = set(preferences.get("modes", []))
     remote_only = "remote" in modes
 
     query, country_code = build_jsearch_query(ai_data, preferences)
 
-    # Attempt 2: first GPT synonym (e.g. "Process Improvement Analyst" → "Business Analyst").
-    # Falls back to truncating to first 2 words if GPT gives nothing.
     synonyms      = get_title_synonyms(query)
     synonym_query = synonyms[0] if synonyms else (" ".join(query.split()[:2]) if len(query.split()) > 2 else query)
 
@@ -842,13 +841,41 @@ def fetch_jobs_from_jsearch(ai_data, preferences):
                 mapped = [map_jsearch_job(j) for j in raw_jobs if j.get("job_title")]
                 if mapped:
                     return mapped
-            print("   [JOBS] 0 results, trying broader search...")
+            print("   [JOBS] 0 results, trying next attempt...")
         except Exception as exc:
             print(f"[JOBS] jsearch attempt failed: {exc}")
-            break   # network/auth error — no point retrying
+            break
+    return []
 
-    print("[JOBS] All jsearch attempts returned 0 — falling back to Adzuna")
-    return fetch_jobs_from_adzuna(ai_data, preferences)
+
+def _dedup_jobs(jobs: list) -> list:
+    """Deduplicate by URL; fall back to (title, company) when URL is absent."""
+    seen = set()
+    out  = []
+    for j in jobs:
+        key = (j.get("url") or "").strip()
+        if not key:
+            key = (j.get("title", "").lower(), j.get("company", "").lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(j)
+    return out
+
+
+def fetch_all_jobs(ai_data, preferences) -> list:
+    """
+    Always run both JSearch and Adzuna, merge, and deduplicate.
+    JSearch stops on its first successful attempt (up to 3 tries).
+    Adzuna always runs and uses the synonym cache for its own fallback.
+    """
+    jsearch_jobs = fetch_jobs_from_jsearch(ai_data, preferences)
+    adzuna_jobs  = fetch_jobs_cached(ai_data, preferences)
+
+    combined = jsearch_jobs + [j for j in adzuna_jobs if j not in jsearch_jobs]
+    deduped  = _dedup_jobs(combined)
+    print(f"[JOBS] merged: {len(jsearch_jobs)} JSearch + {len(adzuna_jobs)} Adzuna → {len(deduped)} unique")
+    return deduped
 
 
 MONTH_MAP = {
@@ -1512,7 +1539,7 @@ while True:
                 job.status_message = "Searching for matching jobs..."
                 db.commit()
 
-                live_jobs = fetch_jobs_from_jsearch(ai_data, preferences)
+                live_jobs = fetch_all_jobs(ai_data, preferences)
 
                 job.status_message = "Scoring and ranking jobs..."
                 db.commit()
@@ -1753,7 +1780,7 @@ INPUT:
             job.status_message = "Searching for matching jobs..."
             db.commit()
 
-            live_jobs = fetch_jobs_from_jsearch(ai_data, preferences)
+            live_jobs = fetch_all_jobs(ai_data, preferences)
 
             job.status_message = "Scoring and ranking jobs..."
             db.commit()

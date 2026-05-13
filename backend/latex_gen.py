@@ -315,7 +315,7 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None, co
         # Subtitle has NO trailing \\ — the caller closes with \par so that the
         # following \vspace{3pt} is a clean between-paragraph skip, not a within-line skip.
         if right:
-            first_line = f"\\textbf{{{left_bold}}} \\hfill \\small {right} \\\\[-2pt]"
+            first_line = f"\\textbf{{{left_bold}}} \\hfill \\small \\textit{{{right}}} \\\\[-2pt]"
         else:
             first_line = f"\\textbf{{{left_bold}}} \\\\[-2pt]"
         if subtitle:
@@ -399,12 +399,12 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None, co
         right = date_str
         if link_raw:
             link_display_raw = (proj.get("link_display") or "").strip()
-            link_label = latex_escape(link_display_raw) if link_display_raw else f"\\texttt{{{latex_escape(link_raw)}}}"
-            href = f"\\href{{{latex_escape(link_raw)}}}{{{link_label}}}"
+            link_label = latex_escape(link_display_raw) if link_display_raw else latex_escape(link_raw)
+            href = f"\\textcolor{{cvlink}}{{\\href{{{latex_escape(link_raw)}}}{{{link_label}}}}}"
             if not date_str:
-                right = href  # link goes in the date slot
+                right = href  # italic applied by entry_header's \textit{right}
             else:
-                link_str = f"\n{href}\\\\"
+                link_str = f"\n\\textit{{{href}}}\\\\"
 
         project_blocks.append(
             entry_header(title, right, subtitle)
@@ -431,12 +431,12 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None, co
         right_ex = date
         if url_raw:
             url_display_raw = (item.get("url_display") or "").strip()
-            url_label = latex_escape(url_display_raw) if url_display_raw else f"\\texttt{{{latex_escape(url_raw)}}}"
-            href_ex = f"\\href{{{latex_escape(url_raw)}}}{{{url_label}}}"
+            url_label = latex_escape(url_display_raw) if url_display_raw else latex_escape(url_raw)
+            href_ex = f"\\textcolor{{cvlink}}{{\\href{{{latex_escape(url_raw)}}}{{{url_label}}}}}"
             if not date:
-                right_ex = href_ex  # link goes in the date slot
+                right_ex = href_ex  # italic applied by entry_header's \textit{right}
             else:
-                url_str = f"\n{href_ex}\\\\"
+                url_str = f"\n\\textit{{{href_ex}}}\\\\"
 
         extracurricular_blocks.append(
             entry_header(title, right_ex, subtitle)
@@ -569,8 +569,8 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None, co
         contact_items.append(f"\\faMapMarkerAlt~{latex_escape(profile['location'])}")
     if profile.get("email"):
         contact_items.append(
-            f"\\faEnvelope~\\href{{mailto:{latex_escape(profile['email'])}}}"
-            f"{{{latex_escape(profile['email'])}}}"
+            f"\\faEnvelope~\\textcolor{{cvlink}}{{\\textit{{\\href{{mailto:{latex_escape(profile['email'])}}}"
+            f"{{{latex_escape(profile['email'])}}}}}}}"
         )
     if profile.get("phone"):
         contact_items.append(f"\\faPhone~{latex_escape(profile['phone'])}")
@@ -586,7 +586,7 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None, co
             escaped_url = latex_escape(url_raw)
             icon       = _LINK_ICONS.get(link_type, "")
             icon_prefix = f"{icon}~" if icon else ""
-            _raw_links.append((display_raw.lower(), f"{icon_prefix}\\href{{{escaped_url}}}{{{label}}}"))
+            _raw_links.append((display_raw.lower(), f"{icon_prefix}\\textcolor{{cvlink}}{{\\textit{{\\href{{{escaped_url}}}{{{label}}}}}}}"))
     _raw_links.sort(key=lambda x: x[0])
     formatted_links_header = [item for _, item in _raw_links]
 
@@ -662,6 +662,7 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None, co
 \\usepackage[hidelinks,colorlinks=false]{{hyperref}}
 \\usepackage{{xcolor}}
 \\usepackage{{fontawesome5}}
+\\definecolor{{cvlink}}{{RGB}}{{37,99,235}}
 
 % ── Section headings: bold small-caps + full-width rule (no titlesec needed)
 \\makeatletter

@@ -296,6 +296,12 @@ document.getElementById("resendVerifyBtn")?.addEventListener("click", async () =
     }
   }
   if (getToken()) {
+    const pricingRedirect = new URLSearchParams(window.location.search).get("pricing");
+    if (pricingRedirect === "1") {
+      window.history.replaceState({}, "", window.location.pathname);
+      window.location.href = "/pricing.html";
+      return;
+    }
     showApp();
   } else {
     showAuthScreen();
@@ -1265,6 +1271,8 @@ if (uploadForm) {
       const uploadData = await uploadRes.json();
 
       if (!uploadRes.ok) {
+        statusCard.classList.add("hidden");
+        if (handleApiLimitError(uploadRes.status, uploadData.detail)) return;
         const detail = uploadData.detail;
         setStatusFailed(typeof detail === "string" ? detail : "Upload failed.");
         return;
@@ -1533,6 +1541,8 @@ document.getElementById("findJobsBtn")?.addEventListener("click", async () => {
     const data = await res.json();
 
     if (!res.ok) {
+      statusCard.classList.add("hidden");
+      if (handleApiLimitError(res.status, data.detail)) return;
       const detail = data.detail;
       let msg = "Submission failed.";
       if (Array.isArray(detail) && detail.length) {
@@ -1540,7 +1550,6 @@ document.getElementById("findJobsBtn")?.addEventListener("click", async () => {
       } else if (typeof detail === "string") {
         msg = detail;
       }
-      statusCard.classList.add("hidden");
       showFormError(msg, "builderForm");
       return;
     }
@@ -1701,93 +1710,130 @@ function renderResults(data, jobId) {
        </div>`
     : "";
 
-  matchedJobs.innerHTML = bannerHtml + jobs.map((job) => {
-    const matchPct   = Math.round(((job.match_score ?? 0) / 500) * 100);
-    const scoreColor = matchPct >= 70 ? "#059669" : matchPct >= 40 ? "#D97706" : "#DC2626";
-    const scoreBg    = matchPct >= 70 ? "#ECFDF5" : matchPct >= 40 ? "#FFFBEB" : "#FEF2F2";
-    const sb = job.score_breakdown || {};
+  _allJobs   = jobs;
+  _jobsShown = 0;
+  matchedJobs.innerHTML = bannerHtml;
+  _renderNextJobBatch();
+}
 
-    const scoreItems = [
-      { label: "Skills",     value: sb.skills_score },
-      { label: "Role Fit",   value: sb.role_relevance_score },
-      { label: "Location",   value: sb.location_score },
-      { label: "Experience", value: sb.experience_score },
-      { label: "Stage Fit",  value: sb.grad_student_fit_score },
-    ];
+const _JOBS_PER_PAGE = 10;
+let _allJobs   = [];
+let _jobsShown = 0;
 
-    const breakdownHtml = scoreItems.map(({ label, value }) => {
-      const pct = value ?? 0;
-      const barColor = pct >= 70 ? "#059669" : pct >= 40 ? "#D97706" : "#DC2626";
-      return `
-        <div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748B;margin-bottom:3px;font-weight:600;">
-            <span>${label}</span>
-            <strong style="color:#0F172A;">${value !== undefined ? value + "%" : "—"}</strong>
-          </div>
-          <div style="height:5px;background:#E2E8F0;border-radius:999px;overflow:hidden;">
-            <div style="height:100%;width:${pct}%;background:${barColor};border-radius:999px;"></div>
-          </div>
-        </div>`;
-    }).join("");
+function jobCardHtml(job) {
+  const matchPct   = Math.round(((job.match_score ?? 0) / 500) * 100);
+  const scoreColor = matchPct >= 70 ? "#059669" : matchPct >= 40 ? "#D97706" : "#DC2626";
+  const scoreBg    = matchPct >= 70 ? "#ECFDF5" : matchPct >= 40 ? "#FFFBEB" : "#FEF2F2";
+  const sb = job.score_breakdown || {};
 
+  const scoreItems = [
+    { label: "Skills",     value: sb.skills_score },
+    { label: "Role Fit",   value: sb.role_relevance_score },
+    { label: "Location",   value: sb.location_score },
+    { label: "Experience", value: sb.experience_score },
+    { label: "Stage Fit",  value: sb.grad_student_fit_score },
+  ];
+
+  const breakdownHtml = scoreItems.map(({ label, value }) => {
+    const pct = value ?? 0;
+    const barColor = pct >= 70 ? "#059669" : pct >= 40 ? "#D97706" : "#DC2626";
     return `
-    <div class="job">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
-        <div style="flex:1;min-width:0;">
-          <h4 style="margin:0 0 5px;font-size:15px;font-weight:700;color:#0F172A;">${escapeHtml(job.title)}</h4>
-          <p style="margin:0;font-size:13px;color:#64748B;font-weight:500;">
-            ${escapeHtml(job.company)}<span style="margin:0 6px;color:#CBD5E1;">&bull;</span>${escapeHtml(job.location || "Location not specified")}
-          </p>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748B;margin-bottom:3px;font-weight:600;">
+          <span>${label}</span>
+          <strong style="color:#0F172A;">${value !== undefined ? value + "%" : "—"}</strong>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;min-width:60px;">
-          <div style="width:56px;height:56px;border-radius:50%;border:3px solid ${scoreColor};background:${scoreBg};display:flex;align-items:center;justify-content:center;">
-            <span style="font-size:13px;font-weight:700;color:${scoreColor};">${matchPct}%</span>
-          </div>
-          <span style="font-size:10px;color:#94A3B8;margin-top:4px;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;">Match</span>
+        <div style="height:5px;background:#E2E8F0;border-radius:999px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${barColor};border-radius:999px;"></div>
         </div>
-      </div>
-
-      <details style="margin-top:14px;">
-        <summary style="cursor:pointer;font-size:11px;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;list-style:none;user-select:none;">
-          Score Breakdown
-        </summary>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
-          ${breakdownHtml}
-        </div>
-      </details>
-
-      ${(job.matched_skills || []).length ? `
-        <div style="margin-top:14px;">
-          <span style="font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Matched Skills</span>
-          ${job.matched_skills.map(s => `<span class="badge">${escapeHtml(s)}</span>`).join("")}
-        </div>` : ""}
-
-      ${(job.missing_skills || []).length ? `
-        <div style="margin-top:10px;">
-          <span style="font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Skills to Develop</span>
-          ${job.missing_skills.slice(0, 6).map(s => `<span class="badge" style="background:#FEF2F2;color:#DC2626;border-color:#FECACA;">${escapeHtml(s)}</span>`).join("")}
-        </div>` : ""}
-
-      <div style="margin-top:14px;padding-top:12px;border-top:1px solid #E2E8F0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-        ${job.url ? `
-          <a href="${escapeHtml(job.url)}" target="_blank" rel="noopener noreferrer"
-             style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#4F46E5;text-decoration:none;">
-            View Job Listing &#8594;
-          </a>` : "<span></span>"}
-        <button type="button"
-          data-job-url="${escapeHtml(job.url || "")}"
-          data-job-title="${escapeHtml(job.title || "")}"
-          data-job-company="${escapeHtml(job.company || "")}"
-          data-job-location="${escapeHtml(job.location || "")}"
-          data-match-score="${matchPct}"
-          onclick="toggleLikeJob(this)"
-          style="background:none;border:1.5px solid #E2E8F0;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600;color:#64748B;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s;"
-          class="like-btn">
-          &#9825; Save Job
-        </button>
-      </div>
-    </div>`;
+      </div>`;
   }).join("");
+
+  return `
+  <div class="job">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+      <div style="flex:1;min-width:0;">
+        <h4 style="margin:0 0 5px;font-size:15px;font-weight:700;color:#0F172A;">${escapeHtml(job.title)}</h4>
+        <p style="margin:0;font-size:13px;color:#64748B;font-weight:500;">
+          ${escapeHtml(job.company)}<span style="margin:0 6px;color:#CBD5E1;">&bull;</span>${escapeHtml(job.location || "Location not specified")}
+        </p>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;min-width:60px;">
+        <div style="width:56px;height:56px;border-radius:50%;border:3px solid ${scoreColor};background:${scoreBg};display:flex;align-items:center;justify-content:center;">
+          <span style="font-size:13px;font-weight:700;color:${scoreColor};">${matchPct}%</span>
+        </div>
+        <span style="font-size:10px;color:#94A3B8;margin-top:4px;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;">Match</span>
+      </div>
+    </div>
+
+    <details style="margin-top:14px;">
+      <summary style="cursor:pointer;font-size:11px;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;list-style:none;user-select:none;">
+        Score Breakdown
+      </summary>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
+        ${breakdownHtml}
+      </div>
+    </details>
+
+    ${(job.matched_skills || []).length ? `
+      <div style="margin-top:14px;">
+        <span style="font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Matched Skills</span>
+        ${job.matched_skills.map(s => `<span class="badge">${escapeHtml(s)}</span>`).join("")}
+      </div>` : ""}
+
+    ${(job.missing_skills || []).length ? `
+      <div style="margin-top:10px;">
+        <span style="font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Skills to Develop</span>
+        ${job.missing_skills.slice(0, 6).map(s => `<span class="badge" style="background:#FEF2F2;color:#DC2626;border-color:#FECACA;">${escapeHtml(s)}</span>`).join("")}
+      </div>` : ""}
+
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid #E2E8F0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      ${job.url ? `
+        <a href="${escapeHtml(job.url)}" target="_blank" rel="noopener noreferrer"
+           style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#4F46E5;text-decoration:none;">
+          View Job Listing &#8594;
+        </a>` : "<span></span>"}
+      <button type="button"
+        data-job-url="${escapeHtml(job.url || "")}"
+        data-job-title="${escapeHtml(job.title || "")}"
+        data-job-company="${escapeHtml(job.company || "")}"
+        data-job-location="${escapeHtml(job.location || "")}"
+        data-match-score="${matchPct}"
+        onclick="toggleLikeJob(this)"
+        style="background:none;border:1.5px solid #E2E8F0;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600;color:#64748B;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s;"
+        class="like-btn">
+        &#9825; Save Job
+      </button>
+    </div>
+  </div>`;
+}
+
+function _renderNextJobBatch() {
+  const matchedJobs = document.getElementById("matchedJobs");
+  if (!matchedJobs) return;
+
+  const batch = _allJobs.slice(_jobsShown, _jobsShown + _JOBS_PER_PAGE);
+  _jobsShown += batch.length;
+
+  const existing = document.getElementById("loadMoreJobsBtn");
+  if (existing) existing.remove();
+
+  batch.forEach(job => {
+    matchedJobs.insertAdjacentHTML("beforeend", jobCardHtml(job));
+  });
+
+  if (_jobsShown < _allJobs.length) {
+    const remaining = _allJobs.length - _jobsShown;
+    const next = Math.min(_JOBS_PER_PAGE, remaining);
+    const btn = document.createElement("button");
+    btn.id = "loadMoreJobsBtn";
+    btn.textContent = `Load ${next} more job${next !== 1 ? "s" : ""} (${remaining} remaining)`;
+    btn.style.cssText = "display:block;width:100%;margin-top:16px;padding:12px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;color:var(--text-secondary);cursor:pointer;transition:all 0.15s;";
+    btn.onmouseover = () => { btn.style.borderColor = "var(--primary)"; btn.style.color = "var(--primary)"; };
+    btn.onmouseout  = () => { btn.style.borderColor = "var(--border)";  btn.style.color = "var(--text-secondary)"; };
+    btn.onclick = _renderNextJobBatch;
+    matchedJobs.appendChild(btn);
+  }
 }
 
 // Track liked URLs in memory so the heart stays filled within the session
@@ -1854,7 +1900,11 @@ window.approveCv = async function (jobId) {
       method:  "POST",
       headers: authHeaders(),
     });
-    if (!res.ok) throw new Error("Approval failed");
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (handleApiLimitError(res.status, data.detail)) return;
+      throw new Error("Approval failed");
+    }
     setStatusLoading("CV approved — finding matching jobs…");
     matchedJobs.innerHTML = `
       <div style="padding:14px 18px;background:var(--bg);border-radius:10px;border:1px solid var(--border);font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;">
@@ -2058,6 +2108,14 @@ async function loadProfileData() {
   if (cvsList)     cvsList.innerHTML     = "<p class='profile-empty'>Loading…</p>";
   if (matchesList) matchesList.innerHTML = "<p class='profile-empty'>Loading…</p>";
   if (likedList)   likedList.innerHTML   = "<p class='profile-empty'>Loading…</p>";
+
+  try {
+    const profileRes = await apiFetch(`${BACKEND_URL}/profile`, { headers: authHeaders() });
+    if (profileRes.ok) {
+      const profileData = await profileRes.json();
+      renderSubscriptionCard(profileData);
+    }
+  } catch (_) {}
 
   // CVs + matches
   try {
@@ -2861,3 +2919,162 @@ window.deleteAccount = async function() {
     showToast("Failed to delete account. Please try again.");
   }
 };
+
+function renderSubscriptionCard(profile) {
+  const card    = document.getElementById("subscriptionCard");
+  const pill    = document.getElementById("planPill");
+  const bars    = document.getElementById("usageBars");
+  const actions = document.getElementById("subActions");
+  const note    = document.getElementById("contactUploadsNote");
+  if (!card) return;
+
+  const tier   = profile.subscription_tier   || "free";
+  const status = profile.subscription_status || "inactive";
+  const isPro  = tier === "pro" && status === "active";
+  const isCanceling = status === "canceling";
+
+  card.className = "subscription-card" + (isPro ? " pro-active" : "");
+
+  pill.textContent = isPro ? "Pro" : isCanceling ? "Pro (canceling)" : "Free";
+  pill.className   = "plan-pill " + (isPro ? "pro" : isCanceling ? "canceling" : "free");
+
+  const uploads  = profile.uploads_this_month        || 0;
+  const builds   = profile.cv_builds_this_month      || 0;
+  const searches = profile.job_searches_this_month   || 0;
+
+  const uploadMax  = isPro ? 50  : 2;
+  const buildMax   = isPro ? null : 3;
+  const searchMax  = isPro ? null : 5;
+
+  function barRow(label, used, max) {
+    if (max === null) {
+      return `<div class="usage-row">
+        <span class="usage-label">${label}</span>
+        <span class="usage-count" style="color:var(--text-secondary);">Unlimited</span>
+      </div>`;
+    }
+    const pct     = Math.min(100, Math.round((used / max) * 100));
+    const danger  = pct >= 100 ? " danger" : "";
+    return `<div class="usage-row">
+      <span class="usage-label">${label}</span>
+      <div class="usage-bar-wrap"><div class="usage-bar-fill${danger}" style="width:${pct}%"></div></div>
+      <span class="usage-count">${used}/${max}</span>
+    </div>`;
+  }
+
+  bars.innerHTML =
+    barRow("CV uploads", uploads, uploadMax) +
+    barRow("CV builds",  builds,  buildMax) +
+    barRow("Job searches", searches, searchMax);
+
+  if (isPro) {
+    actions.innerHTML = `<button class="btn-cancel-sub" onclick="cancelSubscription()">Cancel subscription</button>`;
+    note.style.display = "";
+  } else if (isCanceling) {
+    actions.innerHTML = `<span style="font-size:13px;color:var(--text-muted);">Your Pro plan is active until the end of the billing period.</span>`;
+    note.style.display = "none";
+  } else {
+    actions.innerHTML = `<a class="btn-upgrade-inline" href="/pricing.html">Upgrade to Pro</a>`;
+    note.style.display = "none";
+  }
+}
+
+window.cancelSubscription = async function() {
+  const confirmed = await showConfirmModal(
+    "Cancel subscription",
+    "Your Pro plan will remain active until the end of the current billing period, then revert to Free. Continue?"
+  );
+  if (!confirmed) return;
+  try {
+    const res = await apiFetch(`${BACKEND_URL}/cancel-subscription`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error();
+    showToast("Subscription cancelled. You will keep Pro until the end of the billing period.", "info", 6000);
+    loadProfileData();
+  } catch (_) {
+    showToast("Failed to cancel subscription. Please try again.");
+  }
+};
+
+function showUpgradeBanner(message) {
+  const existing = document.getElementById("upgradeBanner");
+  if (existing) existing.remove();
+  const el = document.createElement("div");
+  el.id = "upgradeBanner";
+  el.style.cssText = `
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:#1E293B;color:#fff;padding:14px 20px;border-radius:12px;
+    font-size:14px;font-weight:500;z-index:9999;
+    box-shadow:0 8px 24px rgba(0,0,0,0.22);display:flex;align-items:center;
+    gap:14px;max-width:90vw;
+  `;
+  el.innerHTML = `
+    <span>${message}</span>
+    <a href="/pricing.html" style="background:#4F46E5;color:#fff;padding:7px 14px;border-radius:7px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">Upgrade</a>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#94A3B8;font-size:18px;cursor:pointer;padding:0;line-height:1;">&times;</button>
+  `;
+  document.body.appendChild(el);
+  setTimeout(() => {
+    if (el.parentElement) {
+      el.style.transition = "opacity 0.3s";
+      el.style.opacity = "0";
+      setTimeout(() => el.remove(), 320);
+    }
+  }, 10000);
+}
+
+function showProLimitBanner(message) {
+  const existing = document.getElementById("upgradeBanner");
+  if (existing) existing.remove();
+  const el = document.createElement("div");
+  el.id = "upgradeBanner";
+  el.style.cssText = `
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:#1E293B;color:#fff;padding:14px 20px;border-radius:12px;
+    font-size:14px;font-weight:500;z-index:9999;
+    box-shadow:0 8px 24px rgba(0,0,0,0.22);display:flex;align-items:center;
+    gap:14px;max-width:90vw;
+  `;
+  el.innerHTML = `
+    <span>${message}</span>
+    <a href="mailto:cvora.contact@gmail.com" style="background:#4F46E5;color:#fff;padding:7px 14px;border-radius:7px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">Contact us</a>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#94A3B8;font-size:18px;cursor:pointer;padding:0;line-height:1;">&times;</button>
+  `;
+  document.body.appendChild(el);
+  setTimeout(() => {
+    if (el.parentElement) {
+      el.style.transition = "opacity 0.3s";
+      el.style.opacity = "0";
+      setTimeout(() => el.remove(), 320);
+    }
+  }, 12000);
+}
+
+function handleApiLimitError(status, detail) {
+  if (status === 402) {
+    showUpgradeBanner("You've reached your free plan limit. Upgrade to Pro to continue.");
+    return true;
+  }
+  if (status === 429) {
+    const d = typeof detail === "object" ? detail : {};
+    if (d.detail === "monthly_limit_reached") {
+      showProLimitBanner("You've used all 50 uploads this month. Contact us at cvora.contact@gmail.com for more.");
+      return true;
+    }
+  }
+  return false;
+}
+
+(function handleUpgradeSuccess() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("upgrade") === "success") {
+    params.delete("upgrade");
+    const newUrl = window.location.pathname + (params.toString() ? "?" + params.toString() : "");
+    window.history.replaceState({}, "", newUrl);
+    setTimeout(() => {
+      showToast("Welcome to Pro! Your subscription is now active.", "info", 5000);
+    }, 800);
+  }
+})();

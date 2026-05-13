@@ -1387,57 +1387,60 @@
        HERO STRIP
     ════════════════════════════════════════════ */
     .hero-strip {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 20px 28px;
-      margin-bottom: 20px;
+      padding: 24px 0 20px;
+      margin-bottom: 4px;
       display: flex;
-      align-items: center;
+      align-items: flex-end;
       justify-content: space-between;
       gap: 16px;
       flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
     }
     .hero-strip::before { display: none; }
     .hero-strip::after  { display: none; }
-    .hero-text h2 {
-      font-size: 1.05rem;
+    .hero-eyebrow {
+      font-size: 11px;
       font-weight: 600;
-      margin: 0 0 3px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin: 0 0 8px;
+    }
+    .hero-text h2 {
+      font-size: 1.45rem;
+      font-weight: 700;
+      margin: 0 0 6px;
       color: var(--text);
-      letter-spacing: -0.01em;
+      letter-spacing: -0.025em;
+      line-height: 1.2;
+    }
+    .hero-text h2 em {
+      font-style: normal;
+      color: var(--primary);
     }
     .hero-text p {
-      font-size: 13px;
-      color: var(--text-muted);
+      font-size: 13.5px;
+      color: var(--text-secondary);
       margin: 0;
-      max-width: 480px;
+      max-width: 460px;
+      line-height: 1.55;
     }
-    .hero-stats {
+    .hero-chips {
       display: flex;
       gap: 6px;
       flex-shrink: 0;
       flex-wrap: wrap;
-    }
-    .hero-stat {
-      display: flex;
       align-items: center;
-      gap: 6px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 5px 12px;
     }
-    .hero-stat-value {
-      font-size: 12px;
+    .hero-chip {
+      font-size: 11.5px;
       font-weight: 600;
       color: var(--primary);
-      line-height: 1;
-    }
-    .hero-stat-label {
-      font-size: 12px;
-      color: var(--text-secondary);
-      font-weight: 500;
+      background: var(--primary-light);
+      border-radius: 999px;
+      padding: 4px 11px;
+      letter-spacing: 0.01em;
     }
 
     /* ════════════════════════════════════════════
@@ -1737,6 +1740,122 @@
     }
     .profile-empty p { font-size: 13px; margin: 0; max-width: 260px; line-height: 1.5; }
 
+    .subscription-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+      margin-bottom: 20px;
+    }
+    .subscription-card.pro-active {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+    .sub-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .sub-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0;
+    }
+    .plan-pill {
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 2px 9px;
+      border-radius: 20px;
+    }
+    .plan-pill.free { background: var(--bg); color: var(--text-secondary); border: 1px solid var(--border); }
+    .plan-pill.pro  { background: var(--primary); color: #fff; }
+    .plan-pill.canceling { background: var(--warning-light); color: var(--warning); border: 1px solid #FDE68A; }
+    .usage-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .usage-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+    .usage-label {
+      width: 130px;
+      flex-shrink: 0;
+      color: var(--text-secondary);
+    }
+    .usage-bar-wrap {
+      flex: 1;
+      height: 6px;
+      background: var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .usage-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: var(--primary);
+      transition: width .3s;
+    }
+    .usage-bar-fill.danger { background: var(--danger); }
+    .usage-count {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .sub-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .btn-upgrade-inline {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      padding: 7px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+    .btn-upgrade-inline:hover { background: var(--primary-dark); }
+    .btn-cancel-sub {
+      background: none;
+      color: var(--text-muted);
+      border: 1.5px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-cancel-sub:hover { color: var(--danger); border-color: var(--danger-border); }
+    .contact-uploads-note {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+    .contact-uploads-note a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .contact-uploads-note a:hover { text-decoration: underline; }
+
     /* ════════════════════════════════════════════
        FORGOT / RESET PASSWORD
     ════════════════════════════════════════════ */
@@ -1977,6 +2096,7 @@
       </div>
       <div class="topbar-right">
         <span id="loggedInEmail"></span>
+        <a href="/pricing.html" style="font-size:13px;font-weight:500;color:#94A3B8;text-decoration:none;padding:4px 8px;border-radius:6px;transition:color .15s,background .15s;" onmouseover="this.style.color='#fff';this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.color='#94A3B8';this.style.background='transparent'">Pricing</a>
         <button type="button" id="profileNavBtn" onclick="showProfileView()">Profile</button>
         <button type="button" id="profileBtn" onclick="showProfileView()" title="My Profile" aria-label="My Profile">?</button>
         <button type="button" onclick="logout()">Sign out</button>
@@ -1994,6 +2114,18 @@
           </div>
           <button class="profile-back-btn" onclick="showMainView()">&#8592; Back</button>
           <button id="deleteAccountBtn" onclick="deleteAccount()" style="background:none;border:1.5px solid var(--danger);color:var(--danger);font-size:12px;font-weight:600;padding:6px 14px;border-radius:6px;cursor:pointer;margin-left:auto;">Delete Account</button>
+        </div>
+
+        <div id="subscriptionCard" class="subscription-card">
+          <div class="sub-header">
+            <h3>Your plan</h3>
+            <span id="planPill" class="plan-pill free">Free</span>
+          </div>
+          <div class="usage-bars" id="usageBars"></div>
+          <div class="sub-actions" id="subActions"></div>
+          <div class="contact-uploads-note" id="contactUploadsNote" style="display:none;">
+            Need more than 50 uploads? <a href="mailto:cvora.contact@gmail.com">Contact us</a>
+          </div>
         </div>
 
         <div class="profile-tabs">
@@ -2021,22 +2153,14 @@
       <!-- Hero strip -->
       <div class="hero-strip">
         <div class="hero-text">
-          <h2>CV matching &amp; job search, powered by AI</h2>
-          <p>Upload your CV, get scored matches against live listings, and export a tailored PDF.</p>
+          <p class="hero-eyebrow">CV Matching &amp; Job Search</p>
+          <h2>Your CV, matched to <em>live jobs</em> by AI.</h2>
+          <p>Upload or build your CV, get scored matches against live listings, and export a tailored PDF.</p>
         </div>
-        <div class="hero-stats">
-          <div class="hero-stat">
-            <div class="hero-stat-value">AI</div>
-            <div class="hero-stat-label">Scoring</div>
-          </div>
-          <div class="hero-stat">
-            <div class="hero-stat-value">Live</div>
-            <div class="hero-stat-label">Jobs</div>
-          </div>
-          <div class="hero-stat">
-            <div class="hero-stat-value">PDF</div>
-            <div class="hero-stat-label">Export</div>
-          </div>
+        <div class="hero-chips">
+          <span class="hero-chip">AI Scoring</span>
+          <span class="hero-chip">Live Listings</span>
+          <span class="hero-chip">PDF Export</span>
         </div>
       </div>
 
@@ -2492,7 +2616,7 @@
     </div><!-- /mainView -->
 
     <footer class="app-footer">
-      <span>© 2025 CVora</span>
+      <span>© 2026 CVora</span>
       <div class="app-footer-links">
         <a href="mailto:cvora.contact@gmail.com">Contact Us</a>
         <a href="/privacy.html" target="_blank">Privacy Policy</a>

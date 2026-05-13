@@ -1356,6 +1356,20 @@
       margin-bottom: 16px;
       padding-bottom: 14px;
       border-bottom: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #resultsBadge {
+      display: none;
+      font-size: 12px;
+      font-weight: 600;
+      color: #065F46;
+      background: #D1FAE5;
+      border: 1px solid #6EE7B7;
+      border-radius: 999px;
+      padding: 3px 10px;
+      line-height: 1.4;
     }
 
     #resultsCard h3 {
@@ -2644,7 +2658,7 @@
       </div>
 
       <div id="resultsCard" class="card hidden">
-        <h2>Results</h2>
+        <h2>Results <span id="resultsBadge"></span></h2>
         <div id="candidateInfo"></div>
         <h3>Matched Jobs</h3>
         <div id="matchedJobs"></div>

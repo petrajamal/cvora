@@ -1066,12 +1066,14 @@ def ai_extract_cv_data(text):
     )
 
     raw_output = response.output_text.strip()
+    print(f"[CV EXTRACT] raw GPT output (first 500 chars):\n{raw_output[:500]}")
     # Strip markdown fences if the model wrapped the JSON
     if raw_output.startswith("```"):
         raw_output = re.sub(r"^```[^\n]*\n?", "", raw_output)
         raw_output = re.sub(r"\n?```$", "", raw_output).strip()
 
     result = json.loads(raw_output)
+    print(f"[CV EXTRACT] parsed: name={result.get('full_name')!r} email={result.get('email')!r} skills_count={len(result.get('skills') or [])}")
 
     # Fill in location from CV body if not stated at the top level
     if not result.get("location"):
@@ -1636,6 +1638,7 @@ while True:
                     cached_data.get("email") or
                     cached_data.get("work_experience")
                 )
+                print(f"[CV] DB cache found={cached_job is not None} valid={bool(cache_valid)}")
                 if cache_valid:
                     print("[CV] Reusing cached extraction from previous analysis.")
                     job.extracted_text  = cached_job.extracted_text

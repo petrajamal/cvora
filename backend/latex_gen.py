@@ -396,13 +396,18 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None, co
         date_str = date_range(start, end) if (start or end) else ""
 
         link_str = ""
+        right = date_str
         if link_raw:
             link_display_raw = (proj.get("link_display") or "").strip()
-            link_label = latex_escape(link_display_raw) if link_display_raw else f"\\small \\texttt{{{latex_escape(link_raw)}}}"
-            link_str = f"\n\\href{{{latex_escape(link_raw)}}}{{{link_label}}}\\\\"
+            link_label = latex_escape(link_display_raw) if link_display_raw else f"\\texttt{{{latex_escape(link_raw)}}}"
+            href = f"\\href{{{latex_escape(link_raw)}}}{{{link_label}}}"
+            if not date_str:
+                right = href  # link goes in the date slot
+            else:
+                link_str = f"\n{href}\\\\"
 
         project_blocks.append(
-            entry_header(title, date_str, subtitle)
+            entry_header(title, right, subtitle)
             + link_str
             + (render_bullets(desc, max_bullets) + "\n\\vspace{3pt}\n"
                if desc else "\\par\n\\vspace{3pt}\n")
@@ -423,13 +428,18 @@ def generate_latex_cv(profile: dict, max_bullets_override: int | None = None, co
 
         url_raw  = (item.get("url") or "").strip()
         url_str  = ""
+        right_ex = date
         if url_raw:
             url_display_raw = (item.get("url_display") or "").strip()
-            url_label = latex_escape(url_display_raw) if url_display_raw else f"\\small \\texttt{{{latex_escape(url_raw)}}}"
-            url_str = f"\n\\href{{{latex_escape(url_raw)}}}{{{url_label}}}\\\\"
+            url_label = latex_escape(url_display_raw) if url_display_raw else f"\\texttt{{{latex_escape(url_raw)}}}"
+            href_ex = f"\\href{{{latex_escape(url_raw)}}}{{{url_label}}}"
+            if not date:
+                right_ex = href_ex  # link goes in the date slot
+            else:
+                url_str = f"\n{href_ex}\\\\"
 
         extracurricular_blocks.append(
-            entry_header(title, date, subtitle)
+            entry_header(title, right_ex, subtitle)
             + url_str
             + (render_bullets(desc, max_bullets) + "\n\\vspace{3pt}\n"
                if desc else "\\par\n\\vspace{3pt}\n")

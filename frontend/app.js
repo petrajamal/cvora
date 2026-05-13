@@ -1496,7 +1496,8 @@ const previewCard   = document.getElementById("previewCard");
 const previewFrame  = document.getElementById("previewFrame");
 const previewStatus = document.getElementById("previewStatus");
 let   _previewBlobUrl    = null;
-let   _builderSavedJobId = null;
+let   _builderSavedJobId      = null;
+let   _lastBuiltProfileJson   = null; // snapshot of profile at last successful build
 
 async function updateCvPreview() {
   if (!validateBuilderForm()) return;
@@ -1579,6 +1580,7 @@ function resetBuilder() {
   // Clear section label overrides
   resetSectionLabels({});
   resetSkillGroupLabels({});
+  _lastBuiltProfileJson = null;
 
   // Clear skills state arrays
   technicalSkills.length = 0;
@@ -1657,6 +1659,19 @@ document.getElementById("findJobsBtn")?.addEventListener("click", async () => {
   if (!validateBuilderForm()) return;
 
   const candidate_profile = buildCandidateProfile();
+
+  // If the CV hasn't changed since the last build, skip rebuild and go straight to matching
+  if (
+    _builderSavedJobId &&
+    _lastBuiltProfileJson &&
+    JSON.stringify(candidate_profile) === _lastBuiltProfileJson
+  ) {
+    statusCard.classList.remove("hidden");
+    resultsCard.classList.add("hidden");
+    setStatusLoading("CV unchanged — finding matching jobs…");
+    approveCv(_builderSavedJobId);
+    return;
+  }
 
   // Collect location preferences
   const builderModes = Array.from(
@@ -1811,6 +1826,8 @@ function renderResults(data, jobId) {
 
   // ── Builder flow: cv_generated → show download + approve ──
   if (data.status === "cv_generated") {
+    // Snapshot form state so next "Find Jobs" can skip the rebuild if nothing changed
+    try { _lastBuiltProfileJson = JSON.stringify(buildCandidateProfile()); } catch (_) {}
     const hasPdf = !!data.generated_pdf_path;
     matchedJobs.innerHTML = `
       <div style="padding:20px;background:#ECFDF5;border:1.5px solid #A7F3D0;border-radius:12px;margin-top:8px;">
@@ -2813,6 +2830,9 @@ window.editBuilderCv = async function (jobId) {
       resetSkillGroupLabels(sgLabels);
     }
     _restoreToggle("toggleLanguages", p.languages_hidden);
+
+    // Snapshot the form state so "Find Jobs" can detect whether anything changed
+    try { _lastBuiltProfileJson = JSON.stringify(buildCandidateProfile()); } catch (_) {}
 
     // Scroll to top of builder
     document.getElementById("builderSection")?.scrollIntoView({ behavior: "smooth", block: "start" });

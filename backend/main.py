@@ -265,7 +265,7 @@ PADDLE_API_KEY        = os.getenv("PADDLE_API_KEY", "")
 PADDLE_WEBHOOK_SECRET = os.getenv("PADDLE_WEBHOOK_SECRET", "")
 PADDLE_PRICE_MONTHLY  = os.getenv("PADDLE_PRICE_MONTHLY", "")
 PADDLE_PRICE_YEARLY   = os.getenv("PADDLE_PRICE_YEARLY", "")
-PADDLE_API_BASE       = "https://api.paddle.com"
+PADDLE_API_BASE       = os.getenv("PADDLE_API_BASE", "https://api.paddle.com")
 
 _PADDLE_HEADERS = {
     "Authorization": f"Bearer {PADDLE_API_KEY}",

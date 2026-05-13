@@ -1007,11 +1007,15 @@ def ai_extract_cv_data(text):
     """
 
     response = client.responses.create(
-        model="gpt-5.4",
+        model="gpt-4o",
         input=prompt
     )
 
     raw_output = response.output_text.strip()
+    # Strip markdown fences if the model wrapped the JSON
+    if raw_output.startswith("```"):
+        raw_output = re.sub(r"^```[^\n]*\n?", "", raw_output)
+        raw_output = re.sub(r"\n?```$", "", raw_output).strip()
 
     result = json.loads(raw_output)
 

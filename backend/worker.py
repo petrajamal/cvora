@@ -1752,13 +1752,16 @@ INPUT:
                 return result
 
             if not job.ai_structured_data:
-                job.status_message = "Polishing CV content with AI..."
-                db.commit()
-                try:
-                    ai_data = refine_cv_content(ai_data)
-                except Exception as refine_error:
-                    print(f"[CV] Refinement failed, using original data: {refine_error}")
+                # Refine only for builder CVs — upload CVs are already AI-extracted
+                if job.candidate_profile:
+                    job.status_message = "Polishing CV content with AI..."
+                    db.commit()
+                    try:
+                        ai_data = refine_cv_content(ai_data)
+                    except Exception as refine_error:
+                        print(f"[CV] Refinement failed, using original data: {refine_error}")
                 job.ai_structured_data = json.dumps(ai_data)
+                db.commit()
 
             # ================================
             # GENERATE LATEX FOR FEATURE 2

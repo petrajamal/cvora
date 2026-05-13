@@ -311,6 +311,35 @@ document.getElementById("resendVerifyBtn")?.addEventListener("click", async () =
 const uploadForm = document.getElementById("uploadForm");
 const builderForm = document.getElementById("builderForm");
 
+// ── Dropzone ────────────────────────────────────────────────────────────────
+(function () {
+  const zone     = document.getElementById("dropzone");
+  const fileInput = document.getElementById("cv");
+  const label    = document.getElementById("dropzoneFilename");
+  if (!zone || !fileInput) return;
+
+  function setFile(file) {
+    if (!file || file.type !== "application/pdf") return;
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+    label.textContent = "📄 " + file.name;
+    label.style.display = "block";
+  }
+
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files[0]) setFile(fileInput.files[0]);
+  });
+
+  zone.addEventListener("dragover",  (e) => { e.preventDefault(); zone.classList.add("drag-over"); });
+  zone.addEventListener("dragleave", ()  => zone.classList.remove("drag-over"));
+  zone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    zone.classList.remove("drag-over");
+    setFile(e.dataTransfer.files[0]);
+  });
+})();
+
 const statusCard = document.getElementById("statusCard");
 const statusText = document.getElementById("statusText");
 const resultsCard = document.getElementById("resultsCard");

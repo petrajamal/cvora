@@ -460,6 +460,78 @@ function resetSectionLabels(incoming = {}) {
   });
 }
 
+// ── Skill subsection label renaming ─────────────────────────────────────────
+
+const _skillGroupDefaults = {
+  technical: "Technical Skills",
+  tools:     "Tools & Technologies",
+  soft:      "Soft Skills",
+};
+let skillGroupLabels = {};
+
+function setupSkillGroupRenames() {
+  document.querySelectorAll(".skill-subsection-label[data-skill-group]").forEach(span => {
+    const key = span.dataset.skillGroup;
+    const defaultLabel = _skillGroupDefaults[key] || span.textContent.trim();
+
+    const penBtn = document.createElement("button");
+    penBtn.type = "button";
+    penBtn.className = "section-rename-btn";
+    penBtn.title = "Rename this section in the PDF";
+    penBtn.textContent = "✎";
+    span.appendChild(penBtn);
+
+    function startEdit() {
+      const current = skillGroupLabels[key] || defaultLabel;
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.className = "section-rename-input";
+      inp.value = current;
+      inp.maxLength = 60;
+      span.innerHTML = "";
+      span.appendChild(inp);
+      inp.focus();
+      inp.select();
+
+      function save() {
+        const val = inp.value.trim();
+        if (val && val !== defaultLabel) {
+          skillGroupLabels[key] = val;
+        } else {
+          delete skillGroupLabels[key];
+        }
+        renderSpan();
+      }
+      inp.addEventListener("blur", save);
+      inp.addEventListener("keydown", e => {
+        if (e.key === "Enter") { e.preventDefault(); inp.blur(); }
+        if (e.key === "Escape") { inp.value = skillGroupLabels[key] || defaultLabel; inp.blur(); }
+      });
+    }
+
+    function renderSpan() {
+      const label = skillGroupLabels[key] || defaultLabel;
+      span.textContent = label;
+      span.appendChild(penBtn);
+      penBtn.addEventListener("click", startEdit);
+    }
+
+    penBtn.addEventListener("click", startEdit);
+  });
+}
+
+function resetSkillGroupLabels(incoming = {}) {
+  skillGroupLabels = {};
+  Object.assign(skillGroupLabels, incoming);
+  document.querySelectorAll(".skill-subsection-label[data-skill-group]").forEach(span => {
+    const key = span.dataset.skillGroup;
+    const label = skillGroupLabels[key] || _skillGroupDefaults[key] || "";
+    const pen = span.querySelector(".section-rename-btn");
+    span.textContent = label;
+    if (pen) span.appendChild(pen);
+  });
+}
+
 window.showUpload = function () {
   uploadSection.classList.remove("hidden");
   builderSection.classList.add("hidden");
@@ -886,9 +958,17 @@ function addProjectEntry() {
       ${monthYearHtml("project-end", "End Date (optional)")}
     </div>
     <button type="button" class="add-url-btn">+ Add URL</button>
-    <div class="url-row field-group" style="display:none;">
-      <label>Project URL</label>
-      <input class="project-link" type="url" placeholder="https://…" maxlength="500" />
+    <div class="url-row" style="display:none;">
+      <div class="field-row-2">
+        <div class="field-group">
+          <label>Project URL</label>
+          <input class="project-link" type="url" placeholder="https://…" maxlength="500" />
+        </div>
+        <div class="field-group">
+          <label>Display Text (optional)</label>
+          <input class="project-link-display" placeholder="e.g. github.com/you/project" maxlength="100" />
+        </div>
+      </div>
     </div>
     <div class="field-group">
       <label>Description *</label>
@@ -920,14 +1000,14 @@ function addExtracurricularEntry() {
           <input class="extracurricular-title" placeholder="e.g. Debate Club" maxlength="150" required />
         </div>
         <div class="field-group">
-          <label>Role *</label>
-          <input class="extracurricular-role" placeholder="e.g. President" maxlength="100" required />
+          <label>Role (optional)</label>
+          <input class="extracurricular-role" placeholder="e.g. President" maxlength="100" />
         </div>
       </div>
       <div class="field-row-2">
         <div class="field-group">
-          <label>Organisation *</label>
-          <input class="extracurricular-organization" placeholder="e.g. AUB" maxlength="200" required />
+          <label>Organisation (optional)</label>
+          <input class="extracurricular-organization" placeholder="e.g. AUB" maxlength="200" />
         </div>
         ${monthYearHtml("extracurricular-date", "Date (optional)")}
       </div>
@@ -936,11 +1016,32 @@ function addExtracurricularEntry() {
         <textarea class="extracurricular-description" rows="3" maxlength="2000"
           placeholder="Separate bullets with a new line"></textarea>
       </div>
+      <button type="button" class="add-url-btn">+ Add URL</button>
+      <div class="url-row" style="display:none;">
+        <div class="field-row-2">
+          <div class="field-group">
+            <label>URL</label>
+            <input class="extracurricular-url" type="url" placeholder="https://…" maxlength="500" />
+          </div>
+          <div class="field-group">
+            <label>Display Text (optional)</label>
+            <input class="extracurricular-url-display" placeholder="e.g. club.org" maxlength="100" />
+          </div>
+        </div>
+      </div>
     `)
   );
   const card = container.lastElementChild;
   attachRemoveHandlers("extracurricularEntries");
   attachWordCounter(card.querySelector(".extracurricular-description"), 200);
+
+  const addBtn = card.querySelector(".add-url-btn");
+  const urlRow = card.querySelector(".url-row");
+  addBtn.addEventListener("click", () => {
+    urlRow.style.display = "";
+    addBtn.style.display = "none";
+    attachUrlLengthCheck(card.querySelector(".extracurricular-url"), 200);
+  });
 }
 
 function addCertificationEntry() {
@@ -1123,6 +1224,9 @@ function buildCandidateProfile() {
       technical_hidden: document.getElementById("toggleTechnicalSkills")?.dataset.hidden === "true",
       tools_hidden: document.getElementById("toggleToolsSkills")?.dataset.hidden === "true",
       soft_hidden: document.getElementById("toggleSoftSkills")?.dataset.hidden === "true",
+      technical_label: skillGroupLabels.technical || null,
+      tools_label:     skillGroupLabels.tools     || null,
+      soft_label:      skillGroupLabels.soft       || null,
     },
     setup: {
       user_type: document.getElementById("userType")?.value || "",
@@ -1195,6 +1299,7 @@ function buildCandidateProfile() {
         .map((v) => v.trim())
         .filter(Boolean);
       const link = getTextValue(".project-link", card);
+      const link_display = getTextValue(".project-link-display", card);
       const description = splitBullets(getTextValue(".project-description", card));
       const start_date = getMonthYear(card, "project-start") || null;
       const end_date   = getMonthYear(card, "project-end")   || null;
@@ -1204,6 +1309,7 @@ function buildCandidateProfile() {
         role: role || null,
         technologies,
         link: link || null,
+        link_display: link_display || null,
         description,
         start_date: start_date || null,
         end_date: end_date || null,
@@ -1216,13 +1322,17 @@ function buildCandidateProfile() {
       const organization = getTextValue(".extracurricular-organization", card);
       const date = getMonthYear(card, "extracurricular-date");
       const description = splitBullets(getTextValue(".extracurricular-description", card));
+      const url = getTextValue(".extracurricular-url", card);
+      const url_display = getTextValue(".extracurricular-url-display", card);
       if (!title && !role && !organization) return null;
       return {
         title,
-        role,
-        organization,
+        role: role || null,
+        organization: organization || null,
         date: date || null,
         description,
+        url: url || null,
+        url_display: url_display || null,
         hidden: card.dataset.hidden === "true",
       };
     }),
@@ -1468,6 +1578,7 @@ document.getElementById("compressionWarningModal")?.addEventListener("click", (e
 function resetBuilder() {
   // Clear section label overrides
   resetSectionLabels({});
+  resetSkillGroupLabels({});
 
   // Clear skills state arrays
   technicalSkills.length = 0;
@@ -1976,6 +2087,7 @@ try {
   });
 
   setupSectionRenames();
+  setupSkillGroupRenames();
   addEducationEntry();
   addLinkEntry();
   // Attach counter to static summary field
@@ -2594,6 +2706,7 @@ window.editBuilderCv = async function (jobId) {
         const urlRow = card.querySelector(".url-row");
         if (addBtn && urlRow) { addBtn.style.display = "none"; urlRow.style.display = ""; }
         card.querySelector(".project-link").value = proj.link;
+        if (proj.link_display) card.querySelector(".project-link-display").value = proj.link_display;
       }
       card.querySelector(".project-description").value = (proj.description || []).join("\n");
       if (proj.hidden) {
@@ -2615,6 +2728,13 @@ window.editBuilderCv = async function (jobId) {
       card.querySelector(".extracurricular-organization").value = ex.organization || "";
       setMonthYear(card, "extracurricular-date", ex.date);
       card.querySelector(".extracurricular-description").value = (ex.description || []).join("\n");
+      if (ex.url) {
+        const addBtn = card.querySelector(".add-url-btn");
+        const urlRow = card.querySelector(".url-row");
+        if (addBtn && urlRow) { addBtn.style.display = "none"; urlRow.style.display = ""; }
+        card.querySelector(".extracurricular-url").value = ex.url;
+        if (ex.url_display) card.querySelector(".extracurricular-url-display").value = ex.url_display;
+      }
       if (ex.hidden) {
         card.dataset.hidden = "true";
         const visBtn = card.querySelector(".entry-visibility-btn");
@@ -2686,6 +2806,11 @@ window.editBuilderCv = async function (jobId) {
       _restoreToggle("toggleTechnicalSkills", p.skill_groups.technical_hidden);
       _restoreToggle("toggleToolsSkills", p.skill_groups.tools_hidden);
       _restoreToggle("toggleSoftSkills", p.skill_groups.soft_hidden);
+      const sgLabels = {};
+      if (p.skill_groups.technical_label) sgLabels.technical = p.skill_groups.technical_label;
+      if (p.skill_groups.tools_label)     sgLabels.tools     = p.skill_groups.tools_label;
+      if (p.skill_groups.soft_label)      sgLabels.soft      = p.skill_groups.soft_label;
+      resetSkillGroupLabels(sgLabels);
     }
     _restoreToggle("toggleLanguages", p.languages_hidden);
 

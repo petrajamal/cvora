@@ -1728,7 +1728,7 @@ async def paddle_webhook(request: Request):
         if et in ("subscription.created", "subscription.updated"):
             if user:
                 status = data.get("status", "")
-                user.stripe_subscription_id = str(data.get("id", ""))
+                user.paddle_subscription_id = str(data.get("id", ""))
                 user.subscription_tier   = "pro" if status == "active" else "free"
                 user.subscription_status = status
                 db.commit()
@@ -1755,10 +1755,10 @@ async def cancel_subscription(user_id: str = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.id == user_id).first()
-        if not user or not user.stripe_subscription_id:
+        if not user or not user.paddle_subscription_id:
             raise HTTPException(status_code=404, detail="No active subscription found")
 
-        sub_id = user.stripe_subscription_id
+        sub_id = user.paddle_subscription_id
         resp = requests.post(
             f"{PADDLE_API_BASE}/subscriptions/{sub_id}/cancel",
             json={"effective_from": "next_billing_period"},

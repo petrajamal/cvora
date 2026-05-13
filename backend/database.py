@@ -30,6 +30,16 @@ def run_migrations():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token_hash VARCHAR",
         "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS last_heartbeat TIMESTAMP",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS paddle_customer_id VARCHAR",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS paddle_subscription_id VARCHAR",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_tier VARCHAR DEFAULT 'free'",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status VARCHAR DEFAULT 'inactive'",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS uploads_this_month INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS uploads_month_key VARCHAR",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS cv_builds_this_month INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS builds_month_key VARCHAR",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS job_searches_this_month INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS searches_month_key VARCHAR",
         # Auto-verify users who existed before email verification was introduced
         # (they have no verification_token_hash, so they were never sent a token)
         "UPDATE users SET email_verified = TRUE WHERE email_verified = FALSE AND verification_token_hash IS NULL",

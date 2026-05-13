@@ -222,7 +222,7 @@ authForm.addEventListener("submit", async (e) => {
     setSession(data.token, data.email);
     showApp();
   } catch (err) {
-    authError.textContent = "Cannot reach the server. Is the backend running?";
+    authError.textContent = "Something went wrong. Please try again later.";
   }
 });
 
@@ -1310,7 +1310,7 @@ if (uploadForm) {
       pollResults(uploadData.job_id);
     } catch (err) {
       console.error("Upload error:", err);
-      setStatusFailed("Upload failed. Is the backend running?");
+      setStatusFailed("Something went wrong. Please try again later.");
     }
   });
 }
@@ -1405,7 +1405,7 @@ async function updateCvPreview() {
     if (!res.ok) {
       let detail = "Preview failed.";
       try { detail = (await res.json()).detail || detail; } catch (_) {}
-      previewStatus.innerHTML = `<span class="preview-status-err">Preview failed — ${escapeHtml(detail)}</span>`;
+      previewStatus.innerHTML = `<span class="preview-status-err">Preview unavailable. Please try again.</span>`;
       return;
     }
 
@@ -1586,7 +1586,7 @@ document.getElementById("findJobsBtn")?.addEventListener("click", async () => {
     pollResults(data.job_id);
   } catch (err) {
     console.error("Builder error:", err);
-    setStatusFailed("Build CV request failed. Is the backend running?");
+    setStatusFailed("Something went wrong. Please try again later.");
   }
 });
 
@@ -1663,7 +1663,7 @@ async function pollResults(jobId) {
       const data = await res.json();
 
       if (["pending", "processing", "pending_matching"].includes(data.status)) {
-        setStatusLoading(data.status_message || `Status: ${data.status.replaceAll("_", " ")}…`);
+        setStatusLoading(data.status_message || "Processing…");
         return;
       }
 
@@ -1674,7 +1674,7 @@ async function pollResults(jobId) {
         return;
       }
 
-      setStatusDone(data.status_message || `Status: ${data.status.replaceAll("_", " ")}`);
+      setStatusDone(data.status_message || "Done.");
       renderResults(data, jobId);
     } catch (err) {
       stopAll();
@@ -2031,7 +2031,7 @@ document.getElementById("forgotSubmitBtn")?.addEventListener("click", async () =
     });
     if (msgEl) { msgEl.textContent = "If that email is registered, a reset link has been sent."; msgEl.className = "msg-success"; }
   } catch (_) {
-    if (msgEl) { msgEl.textContent = "Cannot reach the server."; msgEl.className = "msg-error"; }
+    if (msgEl) { msgEl.textContent = "Something went wrong. Please try again later."; msgEl.className = "msg-error"; }
   }
 });
 
@@ -2080,7 +2080,7 @@ document.getElementById("resetPassSubmitBtn")?.addEventListener("click", async (
     // Clean URL
     history.replaceState({}, "", window.location.pathname);
   } catch (_) {
-    if (msgEl) { msgEl.textContent = "Cannot reach the server."; msgEl.className = "msg-error"; }
+    if (msgEl) { msgEl.textContent = "Something went wrong. Please try again later."; msgEl.className = "msg-error"; }
   }
 });
 

@@ -261,16 +261,15 @@ DEV_MODE = os.getenv("DEV_MODE", "true").lower() == "true"
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 FRONTEND_URL   = os.getenv("FRONTEND_URL", "https://cvora.pages.dev")
 
-LS_API_KEY          = os.getenv("LS_API_KEY", "")
-LS_WEBHOOK_SECRET   = os.getenv("LS_WEBHOOK_SECRET", "")
-LS_STORE_ID         = os.getenv("LS_STORE_ID", "")
-LS_VARIANT_MONTHLY  = os.getenv("LS_VARIANT_MONTHLY", "")
-LS_VARIANT_YEARLY   = os.getenv("LS_VARIANT_YEARLY", "")
+PADDLE_API_KEY        = os.getenv("PADDLE_API_KEY", "")
+PADDLE_WEBHOOK_SECRET = os.getenv("PADDLE_WEBHOOK_SECRET", "")
+PADDLE_PRICE_MONTHLY  = os.getenv("PADDLE_PRICE_MONTHLY", "")
+PADDLE_PRICE_YEARLY   = os.getenv("PADDLE_PRICE_YEARLY", "")
+PADDLE_API_BASE       = "https://api.paddle.com"
 
-_LS_HEADERS = {
-    "Authorization": f"Bearer {LS_API_KEY}",
-    "Content-Type":  "application/vnd.api+json",
-    "Accept":        "application/vnd.api+json",
+_PADDLE_HEADERS = {
+    "Authorization": f"Bearer {PADDLE_API_KEY}",
+    "Content-Type":  "application/json",
 }
 
 print(f"[STARTUP] RESEND={'set' if RESEND_API_KEY else 'MISSING'} FRONTEND_URL={FRONTEND_URL}", flush=True)
@@ -1674,9 +1673,9 @@ def approve_cv(
 
 @app.post("/create-checkout-session")
 async def create_checkout_session(payload: dict, user_id: str = Depends(get_current_user_id)):
-    interval    = payload.get("interval", "month")
-    variant_id  = LS_VARIANT_YEARLY if interval == "year" else LS_VARIANT_MONTHLY
-    if not variant_id or not LS_API_KEY:
+    interval = payload.get("interval", "month")
+    price_id = PADDLE_PRICE_YEARLY if interval == "year" else PADDLE_PRICE_MONTHLY
+    if not price_id or not PADDLE_API_KEY:
         raise HTTPException(status_code=503, detail="Payments not configured")
 
     db = SessionLocal()
@@ -1686,71 +1685,61 @@ async def create_checkout_session(payload: dict, user_id: str = Depends(get_curr
             raise HTTPException(status_code=404, detail="User not found")
 
         body = {
-            "data": {
-                "type": "checkouts",
-                "attributes": {
-                    "checkout_data": {
-                        "email": user.email,
-                        "custom": {"user_id": user_id},
-                    },
-                    "product_options": {
-                        "redirect_url": f"{FRONTEND_URL}/app.html?upgrade=success",
-                    },
-                    "checkout_options": {"button_color": "#4F46E5"},
-                },
-                "relationships": {
-                    "store":   {"data": {"type": "stores",   "id": LS_STORE_ID}},
-                    "variant": {"data": {"type": "variants", "id": variant_id}},
-                },
-            }
+            "items": [{"price_id": price_id, "quantity": 1}],
+            "customer": {"email": user.email},
+            "custom_data": {"user_id": user_id},
         }
         resp = requests.post(
-            "https://api.lemonsqueezy.com/v1/checkouts",
+            f"{PADDLE_API_BASE}/transactions",
             json=body,
-            headers=_LS_HEADERS,
+            headers=_PADDLE_HEADERS,
             timeout=10,
         )
         resp.raise_for_status()
-        url = resp.json()["data"]["attributes"]["url"]
+        url = resp.json()["data"]["checkout"]["url"]
         return {"url": url}
     finally:
         db.close()
 
 
-@app.post("/ls-webhook", include_in_schema=False)
-async def ls_webhook(request: Request):
-    raw     = await request.body()
-    sig     = request.headers.get("X-Signature", "")
-    digest  = hmac.new(LS_WEBHOOK_SECRET.encode(), raw, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(digest, sig):
+@app.post("/paddle-webhook", include_in_schema=False)
+async def paddle_webhook(request: Request):
+    raw        = await request.body()
+    sig_header = request.headers.get("Paddle-Signature", "")
+    parts      = dict(p.split("=", 1) for p in sig_header.split(";") if "=" in p)
+    ts, h1     = parts.get("ts", ""), parts.get("h1", "")
+    digest     = hmac.new(
+        PADDLE_WEBHOOK_SECRET.encode(),
+        f"{ts}:{raw.decode()}".encode(),
+        hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(digest, h1):
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
 
     event   = json.loads(raw)
-    et      = event.get("meta", {}).get("event_name", "")
+    et      = event.get("event_type", "")
     data    = event.get("data", {})
-    attrs   = data.get("attributes", {})
-    # user_id is passed as custom_data at checkout creation
-    user_id = event.get("meta", {}).get("custom_data", {}).get("user_id")
+    user_id = (data.get("custom_data") or {}).get("user_id")
 
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.id == user_id).first() if user_id else None
 
-        if et in ("subscription_created", "subscription_updated"):
+        if et in ("subscription.created", "subscription.updated"):
             if user:
-                status = attrs.get("status", "")
+                status = data.get("status", "")
                 user.stripe_subscription_id = str(data.get("id", ""))
                 user.subscription_tier   = "pro" if status == "active" else "free"
                 user.subscription_status = status
                 db.commit()
 
-        elif et == "subscription_cancelled":
+        elif et == "subscription.canceled":
             if user:
                 user.subscription_tier   = "free"
                 user.subscription_status = "canceled"
                 db.commit()
 
-        elif et == "subscription_payment_failed":
+        elif et == "subscription.payment_failed":
             if user:
                 user.subscription_status = "past_due"
                 db.commit()
@@ -1770,10 +1759,10 @@ async def cancel_subscription(user_id: str = Depends(get_current_user_id)):
             raise HTTPException(status_code=404, detail="No active subscription found")
 
         sub_id = user.stripe_subscription_id
-        resp = requests.patch(
-            f"https://api.lemonsqueezy.com/v1/subscriptions/{sub_id}",
-            json={"data": {"type": "subscriptions", "id": sub_id, "attributes": {"cancelled": True}}},
-            headers=_LS_HEADERS,
+        resp = requests.post(
+            f"{PADDLE_API_BASE}/subscriptions/{sub_id}/cancel",
+            json={"effective_from": "next_billing_period"},
+            headers=_PADDLE_HEADERS,
             timeout=10,
         )
         resp.raise_for_status()

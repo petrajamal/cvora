@@ -338,7 +338,7 @@ def register(payload: dict, request: Request):
 
     db = SessionLocal()
     try:
-        if db.query(User).filter(User.email == email).first():
+        if db.query(User).filter(User.email == email, User.is_deleted == False).first():
             raise HTTPException(status_code=409, detail="Email already registered. Try logging in instead.")
 
         raw_token   = secrets.token_urlsafe(32)

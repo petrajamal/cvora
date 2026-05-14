@@ -95,7 +95,7 @@ def check_and_increment_uploads(user: User, db) -> tuple[bool, str]:
         user.uploads_this_month = 0
         user.uploads_month_key = mk
     if is_pro(user):
-        if (user.uploads_this_month or 0) >= 50:
+        if (user.uploads_this_month or 0) >= 2:
             return False, "monthly_limit"
     else:
         if (user.uploads_this_month or 0) >= 2:
@@ -568,7 +568,7 @@ def my_jobs(user_id: str = Depends(get_current_user_id)):
                 "cv_type":          cv_type,
                 "candidate_name":   raw_profile.get("full_name"),
                 "match_count":      len(matched),
-                "top_match":        {"title": top.get("title"), "company": top.get("company"), "match_score": top.get("match_score")} if top else None,
+                "top_match":        {"title": top.get("title"), "company": top.get("company"), "match_score": top.get("match_score"), "url": top.get("url"), "location": top.get("location")} if top else None,
                 "has_pdf":          bool(job.generated_pdf_path),
                 "has_latex":        bool(job.generated_latex),
                 "has_upload":       bool(job.file_path),

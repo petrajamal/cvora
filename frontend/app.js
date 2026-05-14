@@ -2339,14 +2339,28 @@ async function loadProfileData() {
             const date = j.created_at ? new Date(j.created_at).toLocaleDateString() : "—";
             const top = j.top_match;
             if (!top) return "";
+            const matchPct = top.match_score ? Math.round((top.match_score / 500) * 100) : null;
             return `<div class="saved-cv-card" id="job-match-${j.job_id}">
               <div class="saved-cv-icon">Job</div>
               <div class="saved-cv-info">
                 <strong>${escapeHtml(top.title || "Job")}</strong>
                 <span>${escapeHtml(top.company || "")} · ${date}</span>
               </div>
-              <span class="saved-cv-badge done">${top.match_score ? Math.round((top.match_score / 500) * 100) + "%" : "—"}</span>
-              <button class="btn-danger-sm" onclick="deleteJobMatch('${j.job_id}')" title="Delete matches">✕</button>
+              <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                <span class="saved-cv-badge done">${matchPct !== null ? matchPct + "%" : "—"}</span>
+                ${top.url ? `<a href="${escapeHtml(top.url)}" target="_blank" rel="noopener noreferrer" title="View job listing" style="font-size:12px;color:#4F46E5;font-weight:600;text-decoration:none;white-space:nowrap;">View &#8594;</a>` : ""}
+                <button type="button"
+                  data-job-url="${escapeHtml(top.url || "")}"
+                  data-job-title="${escapeHtml(top.title || "")}"
+                  data-job-company="${escapeHtml(top.company || "")}"
+                  data-job-location="${escapeHtml(top.location || "")}"
+                  data-match-score="${matchPct || 0}"
+                  onclick="toggleLikeJob(this)"
+                  title="Save job"
+                  style="background:none;border:none;font-size:16px;cursor:pointer;padding:2px 4px;color:#94A3B8;"
+                  class="like-btn">&#9825;</button>
+                <button class="btn-danger-sm" onclick="deleteJobMatch('${j.job_id}')" title="Delete">✕</button>
+              </div>
             </div>`;
           }).join("");
         }
@@ -3256,4 +3270,4 @@ function handleApiLimitError(status, detail) {
     }, 800);
   }
 })();
-// build: 20260513214038
+// 20260513214020

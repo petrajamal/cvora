@@ -532,12 +532,23 @@ function resetSkillGroupLabels(incoming = {}) {
   });
 }
 
+function _clearJobResults() {
+  _allJobs = [];
+  _jobsShown = 0;
+  if (matchedJobs) matchedJobs.innerHTML = "";
+  document.getElementById("loadMoreJobsBtn")?.remove();
+  const badge = document.getElementById("resultsBadge");
+  if (badge) { badge.textContent = ""; badge.style.display = "none"; }
+  statusCard?.classList.add("hidden");
+}
+
 window.showUpload = function () {
   uploadSection.classList.remove("hidden");
   builderSection.classList.add("hidden");
   document.querySelector(".btn-upload")?.classList.add("mode-active");
   document.querySelector(".btn-builder")?.classList.remove("mode-active");
   document.getElementById("previewCard")?.classList.add("hidden");
+  _clearJobResults();
 };
 
 window.showBuilder = function () {
@@ -546,6 +557,7 @@ window.showBuilder = function () {
   document.querySelector(".btn-builder")?.classList.add("mode-active");
   document.querySelector(".btn-upload")?.classList.remove("mode-active");
   document.getElementById("previewCard")?.classList.remove("hidden");
+  _clearJobResults();
 };
 
 // ── Inline error banner ───────────────────────────────────────────────────────

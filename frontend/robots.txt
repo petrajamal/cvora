@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /app.html
+Disallow: /app
+
+Sitemap: https://cvora.live/sitemap.xml
